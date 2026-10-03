@@ -1,0 +1,405 @@
+.jev-blur-overlay {
+  pointer-events: auto;
+}
+
+.jev-warning-badge {
+  background: #1e1e24 !important;
+  color: #ffffff !important;
+  border: 2px solid #3a3a43 !important;
+  padding: 10px 20px !important;
+  border-radius: 24px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  transition: transform 0.2s ease, background 0.2s ease !important;
+}
+
+.jev-warning-badge:hover {
+  transform: scale(1.04);
+  background: #2a2a35 !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+.jev-warning-badge:active {
+  transform: scale(0.97);
+}
+
+.jev-soft-badge {
+  padding: 4px 10px !important;
+  border-radius: 14px !important;
+  font-size: 11px !important;
+  border-width: 1px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  margin: 0 !important;
+  max-width: 320px !important;
+  white-space: normal !important;
+  text-align: left !important;
+}
+
+/* Column stack so several soft badges never overlap in the same corner. */
+.jev-soft-badge-stack {
+  position: absolute !important;
+  bottom: 6px !important;
+  right: 6px !important;
+  z-index: 10000 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  gap: 6px !important;
+  max-width: 320px !important;
+  pointer-events: none !important;
+}
+
+.jev-soft-badge-stack .jev-warning-badge {
+  pointer-events: auto !important;
+}
+
+/* Floating stack of badges pinned next to an analyzed text selection. */
+.jev-selection-badges {
+  position: absolute !important;
+  z-index: 10001 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 6px !important;
+  max-width: 320px !important;
+  pointer-events: none !important;
+}
+
+.jev-selection-badges .jev-warning-badge {
+  pointer-events: auto !important;
+}
+
+/* Color themes with elevated specificity */
+.jev-theme-fraud { border-color: #ff3b30 !important; box-shadow: 0 4px 14px rgba(255, 59, 48, 0.3) !important; }
+.jev-theme-ad { border-color: #ff9500 !important; box-shadow: 0 4px 14px rgba(255, 149, 0, 0.25) !important; }
+.jev-theme-ai { border-color: #5856d6 !important; box-shadow: 0 4px 14px rgba(88, 86, 214, 0.25) !important; }
+.jev-theme-spam { border-color: #8e8e93 !important; }
+.jev-theme-clickbait { border-color: #007aff !important; box-shadow: 0 4px 14px rgba(0, 122, 255, 0.25) !important; }
+.jev-theme-infobiz { border-color: #af52de !important; box-shadow: 0 4px 14px rgba(175, 82, 222, 0.3) !important; }
+.jev-theme-toxic { border-color: #cc0000 !important; box-shadow: 0 4px 14px rgba(204, 0, 0, 0.35) !important; }
+.jev-theme-plagiat { border-color: #e8e8f0 !important; box-shadow: 0 4px 14px rgba(232, 232, 240, 0.3) !important; }
+
+/* Keyword extraction card - fixed position on viewport so it remains visible while scrolling */
+.jev-keywords-card {
+  position: fixed !important;
+  z-index: 10002 !important;
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+  border: 1px solid #e2e4e8 !important;
+  border-radius: 12px !important;
+  padding: 12px 14px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 13px !important;
+  max-width: 360px !important;
+  min-width: 200px !important;
+  pointer-events: auto !important;
+  line-height: 1.4 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .jev-keywords-card {
+    background: #1e1e24 !important;
+    color: #f0f0f5 !important;
+    border-color: #383842 !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4) !important;
+  }
+}
+
+.jev-keywords-loading {
+  font-weight: 500 !important;
+  color: #007aff !important;
+}
+
+.jev-keywords-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 8px !important;
+  padding-bottom: 6px !important;
+  border-bottom: 1px solid #eaeaea !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .jev-keywords-header {
+    border-bottom-color: #2e2e38 !important;
+  }
+}
+
+.jev-keywords-title {
+  font-weight: 600 !important;
+  font-size: 13px !important;
+}
+
+.jev-keywords-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.jev-btn-link {
+  background: none !important;
+  border: none !important;
+  color: #007aff !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  padding: 2px 4px !important;
+  border-radius: 4px !important;
+}
+
+.jev-btn-link:hover {
+  background: rgba(0, 122, 255, 0.1) !important;
+}
+
+/* Highlighted keywords in document */
+mark.jev-keyword-highlight {
+  background-color: rgba(255, 224, 102, 0.45) !important;
+  color: inherit !important;
+  border-radius: 3px !important;
+  padding: 1px 3px !important;
+  cursor: text !important;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+mark.jev-keyword-highlight:hover {
+  background-color: rgba(255, 193, 7, 0.75) !important;
+}
+
+mark.jev-keyword-highlight.jev-keyword-focused {
+  background-color: rgba(255, 179, 0, 0.9) !important;
+  box-shadow: 0 0 0 3px rgba(255, 179, 0, 0.4) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  mark.jev-keyword-highlight {
+    background-color: rgba(255, 204, 0, 0.25) !important;
+  }
+  mark.jev-keyword-highlight:hover {
+    background-color: rgba(255, 204, 0, 0.55) !important;
+  }
+  mark.jev-keyword-highlight.jev-keyword-focused {
+    background-color: rgba(255, 204, 0, 0.7) !important;
+    box-shadow: 0 0 0 3px rgba(255, 204, 0, 0.4) !important;
+  }
+}
+
+.jev-keyword-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  background: #f1f3f7 !important;
+  color: #222 !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  border: 1px solid #e5e7eb !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  transition: transform 0.15s ease, background-color 0.15s ease !important;
+}
+
+.jev-keyword-chip:hover {
+  transform: translateY(-1px) !important;
+  background: #e3e7ef !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .jev-keyword-chip {
+    background: #2b2b36 !important;
+    color: #e4e4ec !important;
+    border-color: #3d3d4b !important;
+  }
+  .jev-keyword-chip:hover {
+    background: #383847 !important;
+  }
+}
+
+.jev-btn-close {
+  background: none !important;
+  border: none !important;
+  color: #8e8e93 !important;
+  font-size: 16px !important;
+  cursor: pointer !important;
+  line-height: 1 !important;
+  padding: 0 2px !important;
+}
+
+.jev-btn-close:hover {
+  color: #1a1a1a !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .jev-btn-close:hover {
+    color: #ffffff !important;
+  }
+}
+
+.jev-keywords-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+}
+
+.jev-keywords-empty {
+  font-size: 12px !important;
+  color: #8e8e93 !important;
+}
+
+.jev-keyword-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  background: #f1f3f7 !important;
+  color: #222 !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .jev-keyword-chip {
+    background: #2b2b36 !important;
+    color: #e4e4ec !important;
+    border-color: #3d3d4b !important;
+  }
+}
+
+.jev-kw-pct {
+  font-size: 10px !important;
+  color: #007aff !important;
+  font-weight: 600 !important;
+}
+
+/* ==========================================================================
+   Подсветка потенциально опасных элементов на странице (Jev Page Safety)
+   ========================================================================== */
+
+.jev-danger-highlight {
+  outline: 2px dashed #dc2626 !important;
+  outline-offset: 2px !important;
+  transition: outline-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.jev-danger-highlight.jev-sev-critical {
+  outline-color: #b91c1c !important;
+  box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.35) !important;
+}
+
+.jev-danger-highlight.jev-sev-high {
+  outline-color: #ea580c !important;
+  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.3) !important;
+}
+
+.jev-danger-highlight.jev-sev-medium {
+  outline-color: #d97706 !important;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.25) !important;
+}
+
+.jev-danger-highlight.jev-sev-low {
+  outline-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2) !important;
+}
+
+.jev-danger-highlight.jev-danger-flash {
+  animation: jev-danger-pulse 0.8s ease-in-out 2 !important;
+}
+
+@keyframes jev-danger-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.2); }
+  50% { box-shadow: 0 0 0 8px rgba(250, 204, 21, 0.6); }
+}
+
+/* Панель-отчёт в правом нижнем углу */
+.jev-danger-panel {
+  position: fixed !important;
+  right: 12px !important;
+  bottom: 12px !important;
+  z-index: 2147483647 !important;
+  width: 320px !important;
+  max-height: 60vh !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+}
+
+.jev-danger-panel-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  padding: 10px 12px !important;
+  font-weight: 600 !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.jev-danger-panel-list {
+  overflow-y: auto !important;
+  padding: 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+
+.jev-danger-item {
+  border-left: 3px solid #9ca3af !important;
+  background: #f9fafb !important;
+  border-radius: 6px !important;
+  padding: 6px 8px !important;
+  cursor: pointer !important;
+}
+
+.jev-danger-item:hover {
+  background: #f3f4f6 !important;
+}
+
+.jev-danger-item.jev-sev-critical { border-left-color: #b91c1c !important; }
+.jev-danger-item.jev-sev-high { border-left-color: #ea580c !important; }
+.jev-danger-item.jev-sev-medium { border-left-color: #d97706 !important; }
+.jev-danger-item.jev-sev-low { border-left-color: #2563eb !important; }
+
+.jev-danger-item-title {
+  font-weight: 600 !important;
+  font-size: 12px !important;
+}
+
+.jev-danger-item-detail {
+  font-size: 11px !important;
+  color: #6b7280 !important;
+  word-break: break-all !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .jev-danger-panel {
+    background: #1e1e24 !important;
+    color: #f0f0f5 !important;
+    border-color: #383842 !important;
+  }
+  .jev-danger-panel-header {
+    border-bottom-color: #2e2e38 !important;
+  }
+  .jev-danger-item {
+    background: #2b2b36 !important;
+  }
+  .jev-danger-item:hover {
+    background: #383847 !important;
+  }
+  .jev-danger-item-detail {
+    color: #9ca3af !important;
+  }
+}
+

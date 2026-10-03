@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Jev Page Safety",
+  "version": "1.0",
+  "description": "Analyze page vulnerabilities using TypeSafe Jev AI.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "https://api.typesafe.ai/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["styles.css"],
+      "js": ["content.js"]
+    }
+  ]
+}

@@ -1,3 +1,41 @@
+// ---------------------------------------------------------------------------
+// Настройки: API-ключ TypeSafe Jev сохраняется в chrome.storage.local
+// ---------------------------------------------------------------------------
+const apiKeyInput = document.getElementById('apiKey');
+const saveBtn = document.getElementById('saveBtn');
+const saveStatus = document.getElementById('saveStatus');
+
+chrome.storage.local.get(['jevApiKey'], (result) => {
+  if (result.jevApiKey) apiKeyInput.value = result.jevApiKey;
+});
+
+let saveStatusTimer = null;
+let saveBtnTimer = null;
+
+function showSaveStatus(text, ok) {
+  saveStatus.textContent = text;
+  saveStatus.className = 'save-status ' + (ok ? 'ok' : 'error');
+  clearTimeout(saveStatusTimer);
+  saveStatusTimer = setTimeout(() => {
+    saveStatus.textContent = '';
+    saveStatus.className = 'save-status';
+  }, 2600);
+}
+
+saveBtn.addEventListener('click', () => {
+  const key = apiKeyInput.value.trim();
+  chrome.storage.local.set({ jevApiKey: key }, () => {
+    saveBtn.classList.add('saved');
+    saveBtn.textContent = 'Сохранено ✓';
+    clearTimeout(saveBtnTimer);
+    saveBtnTimer = setTimeout(() => {
+      saveBtn.classList.remove('saved');
+      saveBtn.textContent = 'Сохранить настройки';
+    }, 1600);
+    showSaveStatus(key ? 'API-ключ сохранён' : 'API-ключ очищен', true);
+  });
+});
+
 document.getElementById('scanBtn').addEventListener('click', async () => {
   const scanBtn = document.getElementById('scanBtn');
   const loader = document.getElementById('loader');
@@ -18,8 +56,10 @@ document.getElementById('scanBtn').addEventListener('click', async () => {
 
   // 2. Отправляем сигнал в content.js для сбора структуры DOM
   chrome.tabs.sendMessage(tab.id, { action: "scan_page" }, (response) => {
-    if (!response || !response.success) {
-      alert("Ошибка сбора данных страницы. Убедитесь, что страница полностью загружена.");
+    // lastError возникает, если content script недоступен (страница не обновлена
+    // после установки расширения или это служебная страница).
+    if (chrome.runtime.lastError || !response || !response.success) {
+      alert("Не удалось просканировать страницу. Обновите вкладку и попробуйте снова.");
       resetUI();
       return;
     }
@@ -32,6 +72,11 @@ document.getElementById('scanBtn').addEventListener('click', async () => {
     chrome.runtime.sendMessage({ action: "analyze_page", pageData: response.data }, (apiResponse) => {
       resetUI();
 
+      // Если service worker не ответил (порт закрылся), callback приходит с lastError.
+      if (chrome.runtime.lastError) {
+        alert("Сервис Jev AI недоступен: " + chrome.runtime.lastError.message);
+        return;
+      }
       if (apiResponse && apiResponse.success) {
         renderResults(apiResponse.result);
       } else {
@@ -199,7 +244,9 @@ function renderFindings(findings) {
       `<div class="finding-detail">${escapeHtml(finding.selector)}</div>`;
     item.addEventListener('click', () => {
       chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-        if (tab) chrome.tabs.sendMessage(tab.id, { action: "focus_finding", id: finding.id });
+        if (tab) chrome.tabs.sendMessage(tab.id, { action: "focus_finding", id: finding.id }, () => {
+          void chrome.runtime.lastError;
+        });
       });
     });
     list.appendChild(item);
@@ -209,7 +256,9 @@ function renderFindings(findings) {
 // Кнопка снятия подсветки со страницы.
 document.getElementById('clearBtn').addEventListener('click', () => {
   chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-    if (tab) chrome.tabs.sendMessage(tab.id, { action: "clear_highlights" });
+    if (tab) chrome.tabs.sendMessage(tab.id, { action: "clear_highlights" }, () => {
+      void chrome.runtime.lastError;
+    });
   });
 });
 

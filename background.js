@@ -1,5 +1,23 @@
-const TYPESAFE_API_KEY = ""; // Укажите ваш ключ
 const TYPESAFE_API_URL = "https://api.typesafe.ai/v1/systemone";
+const SCAN_PAGE_MENU_ID = "jev-scan-page";
+
+// Контекстное меню создаётся один раз при установке/обновлении расширения.
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: SCAN_PAGE_MENU_ID,
+    title: "Jev: проверить безопасность страницы",
+    contexts: ["page", "selection"]
+  });
+});
+
+// Клик по меню запускает полное сканирование на активной вкладке.
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === SCAN_PAGE_MENU_ID && tab && tab.id) {
+    chrome.tabs.sendMessage(tab.id, { action: "scan_page_from_menu" }, () => {
+      void chrome.runtime.lastError;
+    });
+  }
+});
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "analyze_page") {
@@ -7,6 +25,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
       try {
         let cleanState = request.pageData;
+
+        // API-ключ хранится в chrome.storage.local и задаётся в настройках popup.
+        const userApiKey = await new Promise((resolve) => {
+          chrome.storage.local.get(["jevApiKey"], (stored) => {
+            resolve((stored.jevApiKey || "").trim());
+          });
+        });
+        if (!userApiKey) {
+          sendResponse({
+            success: false,
+            error: "API-ключ не задан. Откройте popup расширения и сохраните его в настройках."
+          });
+          return;
+        }
         
         // Защита от перегрузки контекста (лимит 32k токенов)
         if (cleanState && cleanState.scripts && cleanState.scripts.length > 50) {
@@ -62,7 +94,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           mode: "cors",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${TYPESAFE_API_KEY}`
+            "Authorization": `Bearer ${userApiKey}`
           },
           body: JSON.stringify({
             model: "jev-latest",

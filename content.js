@@ -303,6 +303,140 @@ function detectDangerousElements() {
   return findings;
 }
 
+// --------------------------------------------------------------------------
+// Сканирование по контекстному меню: собираем данные, подсвечиваем находки и
+// запрашиваем у Jev AI оценку через background, показывая мини-панель на странице.
+// --------------------------------------------------------------------------
+
+async function runInPageScan() {
+  try {
+    const pageData = collectPageSecurityData();
+    const findings = detectDangerousElements();
+    pageData.findings = findings;
+    // Сразу подсвечиваем локально найденные опасные элементы.
+    highlightFindings(findings);
+
+    // Запрос к Jev AI выполняет service worker (читает API-ключ из хранилища).
+    const response = await chrome.runtime.sendMessage({ action: "analyze_page", pageData });
+    if (!response || !response.success) {
+      renderInPageAiSummary(null, (response && response.error) || "Неизвестная ошибка Jev AI");
+      return;
+    }
+    renderInPageAiSummary(response.result, null);
+  } catch (error) {
+    renderInPageAiSummary(null, error.message);
+  }
+}
+
+// Достаёт вероятность из ответа Jev AI в процентах.
+function jevMetricPercent(answer, field) {
+  if (!answer) return 0;
+  const raw = typeof answer[field] === 'number' ? answer[field]
+    : (typeof answer.probability === 'number' ? answer.probability : 0);
+  return Math.round(raw * 100);
+}
+
+const JEV_CATEGORY_LABELS = {
+  "safe": "Безопасно",
+  "insecure_form": "Незащищенная форма (HTTP)",
+  "suspicious_scripts": "Подозрительные скрипты",
+  "clickjacking_risk": "Риск Clickjacking (iframe)",
+  "mixed_content": "Смешанный контент (HTTP/HTTPS)",
+  "credential_harvest": "Обманный сбор учётных данных",
+  "data_exfiltration": "Утечка данных на сторонние домены",
+  "deceptive_ui": "Вводящий в заблуждение интерфейс"
+};
+
+// Цветовой статус риска по проценту (как в popup).
+function jevMetricClass(percent) {
+  if (percent < 30) return 'jev-ai-safe';
+  if (percent < 70) return 'jev-ai-warn';
+  return 'jev-ai-danger';
+}
+
+// Мини-панель с оценкой безопасности страницы от Jev AI (левый нижний угол).
+function renderInPageAiSummary(aiResult, errorMessage) {
+  const existing = document.getElementById('jev-ai-panel');
+  if (existing) existing.remove();
+
+  const panel = document.createElement('div');
+  panel.id = 'jev-ai-panel';
+  panel.className = 'jev-ai-panel';
+
+  const header = document.createElement('div');
+  header.className = 'jev-ai-panel-header';
+
+  const title = document.createElement('span');
+  title.textContent = '🛡️ Jev AI: безопасность страницы';
+
+  const close = document.createElement('button');
+  close.className = 'jev-btn-close';
+  close.type = 'button';
+  close.textContent = '✕';
+  close.addEventListener('click', () => panel.remove());
+
+  header.appendChild(title);
+  header.appendChild(close);
+  panel.appendChild(header);
+
+  const body = document.createElement('div');
+  body.className = 'jev-ai-panel-body';
+
+  if (errorMessage) {
+    const err = document.createElement('div');
+    err.className = 'jev-ai-error';
+    err.textContent = errorMessage;
+    body.appendChild(err);
+  } else {
+    const phishing = jevMetricPercent(aiResult.phishing_prob, 'noul');
+    const harvest = jevMetricPercent(aiResult.credential_harvest, 'noul');
+    const categoryKey = aiResult.risk_category && aiResult.risk_category.choice
+      ? aiResult.risk_category.choice
+      : 'safe';
+    const rawScore = aiResult.severity_score && typeof aiResult.severity_score.score === 'number'
+      ? aiResult.severity_score.score
+      : 0;
+    const score = Math.min(5, Math.max(1, Math.round(rawScore + 1)));
+
+    const addRow = (label, value, cls) => {
+      const line = document.createElement('div');
+      line.className = 'jev-ai-metric';
+      const name = document.createElement('span');
+      name.textContent = label;
+      const val = document.createElement('strong');
+      val.textContent = value;
+      if (cls) val.className = cls;
+      line.appendChild(name);
+      line.appendChild(val);
+      body.appendChild(line);
+    };
+
+    addRow('Угроза фишинга', `${phishing}%`, jevMetricClass(phishing));
+    addRow('Сбор учётных данных', `${harvest}%`, jevMetricClass(harvest));
+    addRow('Основной вектор', JEV_CATEGORY_LABELS[categoryKey] || categoryKey,
+      categoryKey === 'safe' ? 'jev-ai-safe' : 'jev-ai-danger');
+    addRow('Индекс опасности', `${score} / 5`,
+      score >= 4 ? 'jev-ai-danger' : (score >= 3 ? 'jev-ai-warn' : 'jev-ai-safe'));
+  }
+
+  panel.appendChild(body);
+
+  const footer = document.createElement('div');
+  footer.className = 'jev-ai-panel-footer';
+  const clearBtn = document.createElement('button');
+  clearBtn.className = 'jev-btn-link';
+  clearBtn.type = 'button';
+  clearBtn.textContent = 'Снять подсветку';
+  clearBtn.addEventListener('click', () => {
+    clearHighlights();
+    panel.remove();
+  });
+  footer.appendChild(clearBtn);
+  panel.appendChild(footer);
+
+  document.body.appendChild(panel);
+}
+
 // Слушатель сообщений от popup.js или background.js
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "scan_page") {
@@ -320,6 +454,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } catch (error) {
       sendResponse({ success: false, error: error.message });
     }
+  } else if (message.action === "scan_page_from_menu") {
+    runInPageScan();
+    sendResponse({ success: true });
   } else if (message.action === "clear_highlights") {
     clearHighlights();
     sendResponse({ success: true });

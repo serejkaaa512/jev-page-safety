@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Jev Page Safety",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Analyze page vulnerabilities using TypeSafe Jev AI.",
   "permissions": [
     "storage",

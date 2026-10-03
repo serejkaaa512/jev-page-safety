@@ -59,12 +59,49 @@
     #clearBtn { margin-top: 10px; background-color: #6b7280; display: none; }
     #clearBtn:hover { background-color: #4b5563; }
     
+    /* Настройки: сохранение API-ключа */
+    .settings-card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 12px;
+    }
+    .settings-card label { display: block; font-size: 0.8rem; font-weight: 600; color: #4b5563; margin-bottom: 4px; }
+    input[type="password"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 7px 9px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      color: #111827;
+      background: #f9fafb;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+    }
+    input[type="password"]:focus { outline: none; border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+    .save-status { min-height: 14px; margin-top: 5px; font-size: 0.72rem; }
+    .save-status.ok { color: #16a34a; }
+    .save-status.error { color: #dc2626; }
+    #saveBtn { margin-top: 7px; background-color: #6b7280; }
+    #saveBtn:hover { background-color: #4b5563; }
+    #saveBtn.saved { background-color: #16a34a; }
+
     #loader { display: none; text-align: center; color: #4b5563; font-size: 0.9rem; margin: 15px 0; }
   </style>
 </head>
 <body>
 
   <h3>Jev AI Shield <span class="badge">System 1</span></h3>
+
+  <!-- Настройки: API-ключ TypeSafe Jev хранится в chrome.storage.local -->
+  <div class="settings-card">
+    <label for="apiKey">TypeSafe Jev API token</label>
+    <input type="password" id="apiKey" placeholder="apikey_..." autocomplete="off">
+    <button id="saveBtn" aria-label="Сохранить настройки">Сохранить настройки</button>
+    <div id="saveStatus" class="save-status" role="status" aria-live="polite"></div>
+  </div>
+
   <button id="scanBtn">Сканировать страницу</button>
 
   <div id="loader">Анализ структуры Jev AI (~100мс)...</div>

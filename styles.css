@@ -155,6 +155,22 @@
   background: rgba(0, 122, 255, 0.1) !important;
 }
 
+.jev-btn-remove {
+  margin-top: 6px !important;
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 3px 10px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+}
+
+.jev-btn-remove:hover {
+  background: #b91c1c !important;
+}
+
 /* Highlighted keywords in document */
 mark.jev-keyword-highlight {
   background-color: rgba(255, 224, 102, 0.45) !important;

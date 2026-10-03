@@ -15,6 +15,8 @@ let jevFindingSeq = 0;
 const JEV_SEVERITY_ORDER = { critical: 3, high: 2, medium: 1, low: 0 };
 // Максимальное число находок, показываемых на странице и в popup.
 const JEV_MAX_FINDINGS = 40;
+// Находки, показанные в данный момент (для синхронизации панели после удаления).
+let jevCurrentFindings = [];
 
 // --------------------------------------------------------------------------
 // Вспомогательные функции
@@ -463,6 +465,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.action === "focus_finding") {
     focusFinding(message.id);
     sendResponse({ success: true });
+  } else if (message.action === "remove_finding") {
+    sendResponse({ success: removeFinding(message.id) });
+  } else if (message.action === "remove_all_findings") {
+    sendResponse({ success: true, removed: removeAllFindings() });
   }
   return true; // Держим канал связи открытым для асинхронного ответа
 });
@@ -493,6 +499,7 @@ function clearHighlights() {
   });
   const panel = document.getElementById('jev-danger-panel');
   if (panel) panel.remove();
+  jevCurrentFindings = [];
 }
 
 // Прокручивает страницу к элементу и подсвечивает его вспышкой.
@@ -502,6 +509,43 @@ function focusFinding(id) {
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   el.classList.add('jev-danger-flash');
   setTimeout(() => el.classList.remove('jev-danger-flash'), 1600);
+}
+
+// Удаляет DOM-элемент находки со страницы. Возвращает true, если что-то удалено.
+function removeFinding(id) {
+  const el = jevFindingElements.get(id);
+  if (!el || !el.isConnected) {
+    jevFindingElements.delete(id);
+    refreshDangerPanel();
+    return false;
+  }
+  el.remove();
+  jevFindingElements.delete(id);
+  refreshDangerPanel();
+  return true;
+}
+
+// Удаляет все найденные опасные элементы. Возвращает число удалённых.
+function removeAllFindings() {
+  let removed = 0;
+  for (const [id, el] of Array.from(jevFindingElements)) {
+    if (el.isConnected) {
+      el.remove();
+      removed += 1;
+    }
+    jevFindingElements.delete(id);
+  }
+  if (removed > 0) refreshDangerPanel();
+  return removed;
+}
+
+// Перерисовывает панель по актуальному списку (отбрасывает отвалившиеся элементы).
+function refreshDangerPanel() {
+  jevCurrentFindings = jevCurrentFindings.filter(finding => {
+    const el = jevFindingElements.get(finding.id);
+    return el && el.isConnected;
+  });
+  renderDangerPanel(jevCurrentFindings);
 }
 
 // Панель со списком найденных опасных элементов (правый нижний угол).
@@ -526,7 +570,14 @@ function renderDangerPanel(findings) {
   close.textContent = '✕';
   close.addEventListener('click', clearHighlights);
 
+  const removeAll = document.createElement('button');
+  removeAll.className = 'jev-btn-link';
+  removeAll.type = 'button';
+  removeAll.textContent = 'Удалить все';
+  removeAll.addEventListener('click', removeAllFindings);
+
   header.appendChild(title);
+  header.appendChild(removeAll);
   header.appendChild(close);
   panel.appendChild(header);
 
@@ -541,6 +592,18 @@ function renderDangerPanel(findings) {
       `<div class="jev-danger-item-detail">${jevEscapeHtml(finding.selector)}` +
       (finding.detail ? ` — ${jevEscapeHtml(finding.detail)}` : '') +
       '</div>';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'jev-btn-remove';
+    removeBtn.type = 'button';
+    removeBtn.textContent = 'Удалить';
+    removeBtn.title = 'Удалить элемент со страницы';
+    removeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeFinding(finding.id);
+    });
+    item.appendChild(removeBtn);
+
     item.addEventListener('click', () => focusFinding(finding.id));
     list.appendChild(item);
   });
@@ -552,6 +615,7 @@ function renderDangerPanel(findings) {
 // Подсвечивает найденные элементы и строит панель-отчёт.
 function highlightFindings(findings) {
   clearHighlights();
+  jevCurrentFindings = findings;
   findings.forEach(finding => {
     const el = jevFindingElements.get(finding.id);
     if (!el || !el.isConnected) return;

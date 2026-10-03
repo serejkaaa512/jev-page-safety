@@ -222,10 +222,25 @@ function renderSummary(data) {
     .join('');
 }
 
+// Отправляет сообщение в активную вкладку и возвращает результат в onDone.
+function sendToTab(message, onDone) {
+  chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+    if (!tab) {
+      if (onDone) onDone(false);
+      return;
+    }
+    chrome.tabs.sendMessage(tab.id, message, (response) => {
+      void chrome.runtime.lastError;
+      if (onDone) onDone(response && response.success);
+    });
+  });
+}
+
 // Отрисовка списка потенциально опасных элементов (клик прокручивает к элементу).
 function renderFindings(findings) {
   document.getElementById('findingsCount').innerText = findings.length;
   document.getElementById('clearBtn').style.display = 'block';
+  document.getElementById('removeAllBtn').style.display = 'block';
   document.getElementById('findingsBox').style.display = 'block';
 
   const list = document.getElementById('findingsList');
@@ -239,15 +254,37 @@ function renderFindings(findings) {
     const item = document.createElement('div');
     const label = SEVERITY_LABELS[finding.severity] || finding.severity;
     item.className = 'finding-item severity-' + finding.severity;
-    item.innerHTML =
-      `<div class="finding-title">${escapeHtml(finding.reason)}<span class="badge">${escapeHtml(label)}</span></div>` +
-      `<div class="finding-detail">${escapeHtml(finding.selector)}</div>`;
-    item.addEventListener('click', () => {
-      chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-        if (tab) chrome.tabs.sendMessage(tab.id, { action: "focus_finding", id: finding.id }, () => {
-          void chrome.runtime.lastError;
-        });
+
+    const title = document.createElement('div');
+    title.className = 'finding-title';
+    title.innerHTML =
+      `<span>${escapeHtml(finding.reason)}</span><span class="badge">${escapeHtml(label)}</span>`;
+
+    const detail = document.createElement('div');
+    detail.className = 'finding-detail';
+    detail.textContent = finding.selector;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'finding-remove';
+    removeBtn.type = 'button';
+    removeBtn.textContent = 'Удалить';
+    removeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      sendToTab({ action: 'remove_finding', id: finding.id }, () => {
+        item.remove();
+        const left = list.querySelectorAll('.finding-item').length;
+        document.getElementById('findingsCount').innerText = left;
+        if (!left) {
+          list.innerHTML = '<div class="findings-empty">Опасных элементов не обнаружено</div>';
+        }
       });
+    });
+
+    item.appendChild(title);
+    item.appendChild(detail);
+    item.appendChild(removeBtn);
+    item.addEventListener('click', () => {
+      sendToTab({ action: 'focus_finding', id: finding.id });
     });
     list.appendChild(item);
   });
@@ -255,10 +292,15 @@ function renderFindings(findings) {
 
 // Кнопка снятия подсветки со страницы.
 document.getElementById('clearBtn').addEventListener('click', () => {
-  chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-    if (tab) chrome.tabs.sendMessage(tab.id, { action: "clear_highlights" }, () => {
-      void chrome.runtime.lastError;
-    });
+  sendToTab({ action: 'clear_highlights' });
+});
+
+// Кнопка удаления всех найденных опасных элементов со страницы.
+document.getElementById('removeAllBtn').addEventListener('click', () => {
+  sendToTab({ action: 'remove_all_findings' }, () => {
+    document.getElementById('findingsCount').innerText = 0;
+    document.getElementById('findingsList').innerHTML =
+      '<div class="findings-empty">Опасных элементов не обнаружено</div>';
   });
 });
 

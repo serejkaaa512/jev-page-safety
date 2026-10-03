@@ -58,6 +58,17 @@
     .findings-empty { font-size: 0.8rem; color: #16a34a; }
     #clearBtn { margin-top: 10px; background-color: #6b7280; display: none; }
     #clearBtn:hover { background-color: #4b5563; }
+    #removeAllBtn { margin-top: 8px; background-color: #b91c1c; display: none; }
+    #removeAllBtn:hover { background-color: #991b1b; }
+    .finding-remove {
+      margin-top: 4px;
+      width: auto;
+      padding: 2px 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: #dc2626;
+    }
+    .finding-remove:hover { background: #b91c1c; }
     
     /* Настройки: сохранение API-ключа */
     .settings-card {
@@ -155,6 +166,7 @@
   </div>
 
   <button id="clearBtn">Снять подсветку со страницы</button>
+  <button id="removeAllBtn">Удалить все найденные</button>
 
   <script src="popup.js"></script>
 </body>

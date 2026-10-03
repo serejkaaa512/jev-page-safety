@@ -330,6 +330,86 @@ async function runInPageScan() {
   }
 }
 
+// --------------------------------------------------------------------------
+// Автоматическое удаление опасных элементов при загрузке страницы.
+// Включается настройкой jevAutoRemoveDangerous в chrome.storage.local (по
+// умолчанию выключено). Локальная эвристика работает без обращения к Jev AI.
+// --------------------------------------------------------------------------
+
+let jevAutoRemoveEnabled = false;
+let jevAutoRemoveObserver = null;
+let jevAutoRemoveTimer = null;
+
+// Полное сканирование DOM и удаление всех найденных опасных элементов.
+function jevAutoRemoveDangerous() {
+  const findings = detectDangerousElements();
+  if (!findings.length) return;
+  removeAllFindings();
+}
+
+// Реагируем только на появление новых узлов, игнорируя собственный UI
+// расширения (панели находок и оценки Jev AI), чтобы не зациклиться.
+function jevAutoMutationsRelevant(mutations) {
+  for (const mutation of mutations) {
+    for (const node of mutation.addedNodes) {
+      if (!(node instanceof Element)) continue;
+      if (node.id && node.id.startsWith('jev-')) continue;
+      if (node.closest && node.closest('#jev-danger-panel, #jev-ai-panel')) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
+// Отложенный запуск, чтобы серия вставок не вызывала многократное сканирование.
+function jevScheduleAutoRemove() {
+  if (!jevAutoRemoveEnabled) return;
+  clearTimeout(jevAutoRemoveTimer);
+  jevAutoRemoveTimer = setTimeout(() => {
+    if (jevAutoRemoveEnabled) jevAutoRemoveDangerous();
+  }, 200);
+}
+
+function jevStartAutoRemove() {
+  if (jevAutoRemoveObserver) return;
+  const root = document.documentElement || document;
+  jevAutoRemoveObserver = new MutationObserver((mutations) => {
+    if (jevAutoMutationsRelevant(mutations)) jevScheduleAutoRemove();
+  });
+  jevAutoRemoveObserver.observe(root, { childList: true, subtree: true });
+  // Первичное сканирование, когда DOM уже построен.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', jevAutoRemoveDangerous, { once: true });
+  } else {
+    jevScheduleAutoRemove();
+  }
+}
+
+function jevStopAutoRemove() {
+  if (jevAutoRemoveObserver) {
+    jevAutoRemoveObserver.disconnect();
+    jevAutoRemoveObserver = null;
+  }
+  clearTimeout(jevAutoRemoveTimer);
+}
+
+function jevApplyAutoRemove(enabled) {
+  jevAutoRemoveEnabled = enabled;
+  if (enabled) jevStartAutoRemove();
+  else jevStopAutoRemove();
+}
+
+// Читаем настройку при инициализации и следим за её изменением из popup.
+chrome.storage.local.get(['jevAutoRemoveDangerous'], (stored) => {
+  jevApplyAutoRemove(!!stored.jevAutoRemoveDangerous);
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.jevAutoRemoveDangerous) {
+    jevApplyAutoRemove(!!changes.jevAutoRemoveDangerous.newValue);
+  }
+});
+
 // Достаёт вероятность из ответа Jev AI в процентах.
 function jevMetricPercent(answer, field) {
   if (!answer) return 0;

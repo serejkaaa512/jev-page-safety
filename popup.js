@@ -36,6 +36,22 @@ saveBtn.addEventListener('click', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Автоудаление опасных элементов при загрузке страницы (по умолчанию выключено).
+// Настройка читается content.js и применяется без перезагрузки страницы.
+// ---------------------------------------------------------------------------
+const autoRemoveInput = document.getElementById('autoRemove');
+
+chrome.storage.local.get(['jevAutoRemoveDangerous'], (result) => {
+  autoRemoveInput.checked = !!result.jevAutoRemoveDangerous;
+});
+
+autoRemoveInput.addEventListener('change', () => {
+  chrome.storage.local.set({ jevAutoRemoveDangerous: autoRemoveInput.checked }, () => {
+    showSaveStatus(autoRemoveInput.checked ? 'Автоудаление включено' : 'Автоудаление выключено', true);
+  });
+});
+
 document.getElementById('scanBtn').addEventListener('click', async () => {
   const scanBtn = document.getElementById('scanBtn');
   const loader = document.getElementById('loader');

@@ -98,6 +98,24 @@
     #saveBtn:hover { background-color: #4b5563; }
     #saveBtn.saved { background-color: #16a34a; }
 
+    /* Переключатель автоудаления опасных элементов при загрузке страницы */
+    .toggle-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; }
+    .settings-card .toggle-row label {
+      display: block;
+      margin-bottom: 0;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: #4b5563;
+      cursor: pointer;
+    }
+    .toggle-row input[type="checkbox"] {
+      flex: 0 0 auto;
+      width: 14px;
+      height: 14px;
+      margin-top: 1px;
+      cursor: pointer;
+    }
+
     #loader { display: none; text-align: center; color: #4b5563; font-size: 0.9rem; margin: 15px 0; }
   </style>
 </head>
@@ -111,6 +129,12 @@
     <input type="password" id="apiKey" placeholder="apikey_..." autocomplete="off">
     <button id="saveBtn" aria-label="Сохранить настройки">Сохранить настройки</button>
     <div id="saveStatus" class="save-status" role="status" aria-live="polite"></div>
+
+    <!-- Автоудаление опасных элементов при загрузке страницы -->
+    <div class="toggle-row">
+      <input type="checkbox" id="autoRemove">
+      <label for="autoRemove">Автоматически удалять опасные элементы при загрузке страницы</label>
+    </div>
   </div>
 
   <button id="scanBtn">Сканировать страницу</button>

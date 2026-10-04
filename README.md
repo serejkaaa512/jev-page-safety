@@ -32,8 +32,8 @@ assessment of the page structure. Jev AI is the only analysis backend.
 
 - **On page**: a findings panel (bottom-right) showing the page-structure summary and
   the list of flagged elements with highlight + click-to-scroll, plus a Jev AI summary
-  panel (bottom-left) with the AI risk metrics. A context-menu item ("Jev: проверить
-  безопасность страницы") triggers the full in-page scan.
+  panel (bottom-left) with the AI risk metrics. A context-menu item ("Jev: check
+  page safety") triggers the full in-page scan.
 - **Popup** (`popup.html` / `popup.js`): settings and scan button, plus the Jev AI
   metrics (phishing, credential harvest, risk category, severity score). The structural
   summary and the element list live on the page only.

@@ -1,30 +1,30 @@
 // ==========================================================================
 // Jev Page Safety — content script
-// Собирает структуру страницы, локально определяет потенциально опасные
-// элементы и подсвечивает их прямо на странице.
+// Collects the page structure, locally detects potentially dangerous
+// elements and highlights them right on the page.
 // ==========================================================================
 
-// id находки -> живой DOM-элемент (для подсветки и прокрутки к элементу).
+// finding id -> live DOM element (for highlighting and scrolling to it).
 const jevFindingElements = new Map();
-// Оригинальные значения атрибута title, чтобы корректно их восстановить.
+// Original title attribute values, so they can be restored later.
 const jevOriginalTitles = new WeakMap();
-// Сквозной счётчик идентификаторов находок.
+// Monotonic counter of finding ids.
 let jevFindingSeq = 0;
 
-// Порядок важности для сортировки находок.
+// Severity order used to sort findings.
 const JEV_SEVERITY_ORDER = { critical: 3, high: 2, medium: 1, low: 0 };
-// Максимальное число находок, показываемых на странице и в popup.
+// Maximum number of findings shown on the page and in the popup.
 const JEV_MAX_FINDINGS = 40;
-// Находки, показанные в данный момент (для синхронизации панели после удаления).
+// Findings currently shown (keeps the panel in sync after a removal).
 let jevCurrentFindings = [];
-// Сводка по структуре последней просканированной страницы (для панели на странице).
+// Structure summary of the last scanned page (for the on-page panel).
 let jevLastPageSummary = null;
 
 // --------------------------------------------------------------------------
-// Вспомогательные функции
+// Helper functions
 // --------------------------------------------------------------------------
 
-// Origin ссылки (с учётом относительных путей) или '' при ошибке разбора.
+// Origin of a link (relative paths resolved) or '' when parsing fails.
 function jevGetOrigin(url) {
   try {
     return new URL(url, window.location.href).origin;
@@ -33,14 +33,14 @@ function jevGetOrigin(url) {
   }
 }
 
-// Ведёт ли ссылка на сторонний (не текущий) origin.
+// Whether the link points to a third-party (non-current) origin.
 function jevIsCrossOrigin(url) {
   if (!url) return false;
   const origin = jevGetOrigin(url);
   return origin !== '' && origin !== window.location.origin;
 }
 
-// Хост ссылки для отчёта.
+// Host name of a link for the report.
 function jevGetHost(url) {
   try {
     return new URL(url, window.location.href).hostname;
@@ -49,12 +49,12 @@ function jevGetHost(url) {
   }
 }
 
-// Текущая страница открыта по HTTPS.
+// Whether the current page is served over HTTPS.
 function jevIsPageSecure() {
   return window.location.protocol === 'https:';
 }
 
-// Короткое текстовое описание элемента для отчёта.
+// Short text description of an element for the report.
 function jevDescribeElement(el) {
   const parts = [el.tagName.toLowerCase()];
   if (el.id) parts.push(`#${el.id}`);
@@ -65,7 +65,7 @@ function jevDescribeElement(el) {
   return parts.join(' ');
 }
 
-// Экранирование текста перед вставкой через innerHTML.
+// Escapes text before inserting it through innerHTML.
 function jevEscapeHtml(value) {
   return String(value === null || value === undefined ? '' : value)
     .replace(/&/g, '&amp;')
@@ -75,7 +75,7 @@ function jevEscapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-// Функция для безопасного извлечения атрибутов элементов
+// Safely extracts attributes of form fields.
 function extractFormDetails() {
   const forms = document.querySelectorAll('form');
   return Array.from(forms).map(form => {
@@ -116,7 +116,7 @@ function extractScripts() {
   });
 }
 
-// Ссылки: агрегируем опасные схемы и внешние переходы.
+// Links: aggregate dangerous schemes and outbound navigation.
 function extractLinks() {
   const links = Array.from(document.querySelectorAll('a[href]'));
   return links.map(link => {
@@ -133,7 +133,7 @@ function extractLinks() {
   });
 }
 
-// Ресурсы на HTTP, загруженные внутри HTTPS-страницы (mixed content).
+// HTTP resources loaded inside an HTTPS page (mixed content).
 function extractMixedContent() {
   if (!jevIsPageSecure()) return [];
   const selector = 'script[src], link[href], img[src], iframe[src], audio[src], video[src], source[src]';
@@ -142,7 +142,7 @@ function extractMixedContent() {
     .filter(url => url.toLowerCase().startsWith('http:'));
 }
 
-// Автоматический редирект через meta refresh.
+// Automatic redirect through meta refresh.
 function extractMetaRefresh() {
   const meta = document.querySelector('meta[http-equiv="refresh" i]');
   return meta ? (meta.getAttribute('content') || '') : '';
@@ -162,7 +162,7 @@ function extractIframes() {
   });
 }
 
-// Главная функция сбора данных для отправки в Jev AI
+// Main data collection function that produces the payload sent to Jev AI.
 function collectPageSecurityData() {
   const links = extractLinks();
   return {
@@ -187,11 +187,11 @@ function collectPageSecurityData() {
 }
 
 // --------------------------------------------------------------------------
-// Локальная эвристика потенциально опасных элементов
+// Local heuristic detection of potentially dangerous elements
 // --------------------------------------------------------------------------
 
-// Находит элементы, которые могут представлять угрозу, и запоминает
-// соответствие "id находки -> DOM-элемент" для последующей подсветки.
+// Finds elements that may pose a threat and records the
+// "finding id -> DOM element" mapping for later highlighting.
 function detectDangerousElements() {
   jevFindingElements.clear();
   const findings = [];
@@ -211,51 +211,51 @@ function detectDangerousElements() {
     });
   };
 
-  // 1. Формы: сбор паролей и отправка данных.
+  // 1. Forms: password harvesting and data submission.
   document.querySelectorAll('form').forEach(form => {
     const passwordInput = form.querySelector('input[type="password"]');
     const action = form.getAttribute('action') || '';
 
     if (passwordInput && !pageSecure) {
       register(form, 'insecure_credentials', 'critical',
-        'Форма собирает пароль на незащищённом соединении (HTTP)', action);
+        'Password form over an unencrypted connection (HTTP)', action);
     } else if (passwordInput && action && jevIsCrossOrigin(action)) {
       register(form, 'credentials_exfiltration', 'high',
-        'Форма с паролем отправляет данные на сторонний домен', jevGetOrigin(action));
+        'Password form submits data to a third-party domain', jevGetOrigin(action));
     } else if (action.toLowerCase().startsWith('http:')) {
       register(form, 'insecure_action', 'high',
-        'Форма отправляет данные по незащищённому HTTP', action);
+        'Form submits data over unencrypted HTTP', action);
     }
   });
 
-  // 2. Сторонние скрипты без Subresource Integrity.
+  // 2. Third-party scripts without Subresource Integrity.
   let thirdPartyScripts = 0;
   document.querySelectorAll('script[src]').forEach(script => {
     const src = script.getAttribute('src') || '';
-    // HTTP-скрипты на HTTPS-странице обрабатываются ниже (mixed content).
+    // HTTP scripts on an HTTPS page are handled below (mixed content).
     if (pageSecure && src.toLowerCase().startsWith('http:')) return;
     if (jevIsCrossOrigin(src) && !script.hasAttribute('integrity') && thirdPartyScripts < 10) {
       thirdPartyScripts += 1;
       register(script, 'third_party_script', 'low',
-        'Сторонний скрипт без Subresource Integrity (SRI)', jevGetHost(src));
+        'Third-party script without Subresource Integrity (SRI)', jevGetHost(src));
     }
   });
 
-  // 3. Фреймы: sandbox и кликджекинг.
+  // 3. Frames: sandbox and clickjacking.
   document.querySelectorAll('iframe').forEach(iframe => {
     const src = iframe.getAttribute('src') || '';
     if (!src) return;
     if (!iframe.hasAttribute('sandbox')) {
       register(iframe, 'clickjacking_risk', 'high',
-        jevIsCrossOrigin(src) ? 'Сторонний iframe без атрибута sandbox'
-                              : 'iframe без атрибута sandbox', src);
+        jevIsCrossOrigin(src) ? 'Third-party iframe without a sandbox attribute'
+                              : 'iframe without a sandbox attribute', src);
     } else if (jevIsCrossOrigin(src)) {
       register(iframe, 'third_party_frame', 'medium',
-        'Сторонний iframe: ' + jevGetHost(src), src);
+        'Third-party iframe: ' + jevGetHost(src), src);
     }
   });
 
-  // 4. Опасные ссылки (javascript:, data:, reverse tabnabbing).
+  // 4. Dangerous links (javascript:, data:, reverse tabnabbing).
   let unsafeLinks = 0;
   document.querySelectorAll('a[href]').forEach(link => {
     const href = (link.getAttribute('href') || '').trim();
@@ -264,38 +264,38 @@ function detectDangerousElements() {
     if (lower.startsWith('javascript:')) {
       unsafeLinks += 1;
       register(link, 'javascript_link', 'high',
-        'Ссылка с протоколом javascript:', href.slice(0, 80));
+        'Link with the javascript: scheme', href.slice(0, 80));
     } else if (lower.startsWith('data:')) {
       unsafeLinks += 1;
       register(link, 'data_link', 'medium',
-        'Ссылка с протоколом data: (возможна подмена контента)', href.slice(0, 80));
+        'Link with the data: scheme (content substitution possible)', href.slice(0, 80));
     } else if (link.getAttribute('target') === '_blank' &&
                !/noopener|noreferrer/i.test(link.getAttribute('rel') || '')) {
       unsafeLinks += 1;
       register(link, 'reverse_tabnabbing', 'medium',
-        'target="_blank" без rel="noopener"', href);
+        'target="_blank" without rel="noopener"', href);
     }
   });
 
-  // 5. Смешанный контент на HTTPS-странице.
+  // 5. Mixed content on an HTTPS page.
   if (pageSecure) {
     document.querySelectorAll('script[src], link[href], img[src], iframe[src]').forEach(el => {
       const url = el.getAttribute('src') || el.getAttribute('href') || '';
       if (url.toLowerCase().startsWith('http:')) {
         register(el, 'mixed_content', 'high',
-          'Незащищённый ресурс (HTTP) на HTTPS-странице', url);
+          'Unencrypted resource (HTTP) on an HTTPS page', url);
       }
     });
   }
 
-  // 6. Автоматический редирект через meta refresh.
+  // 6. Automatic redirect through meta refresh.
   const refresh = extractMetaRefresh();
   if (refresh && /url\s*=/i.test(refresh)) {
     register(document.querySelector('meta[http-equiv="refresh" i]'), 'meta_redirect', 'medium',
-      'Автоматический редирект через meta refresh', refresh);
+      'Automatic redirect through meta refresh', refresh);
   }
 
-  // Сортируем по важности и отсекаем лишнее.
+  // Sort by severity and drop the rest.
   findings.sort((a, b) => JEV_SEVERITY_ORDER[b.severity] - JEV_SEVERITY_ORDER[a.severity]);
   if (findings.length > JEV_MAX_FINDINGS) findings.length = JEV_MAX_FINDINGS;
 
@@ -308,8 +308,8 @@ function detectDangerousElements() {
 }
 
 // --------------------------------------------------------------------------
-// Сканирование по контекстному меню: собираем данные, подсвечиваем находки и
-// запрашиваем у Jev AI оценку через background, показывая мини-панель на странице.
+// Context-menu scan: collect data, highlight findings and ask
+// Jev AI for an assessment through the background, showing a mini-panel on the page.
 // --------------------------------------------------------------------------
 
 async function runInPageScan() {
@@ -318,13 +318,13 @@ async function runInPageScan() {
     jevLastPageSummary = pageData;
     const findings = detectDangerousElements();
     pageData.findings = findings;
-    // Сразу подсвечиваем локально найденные опасные элементы.
+    // Immediately highlight the dangerous elements found locally.
     highlightFindings(findings);
 
-    // Запрос к Jev AI выполняет service worker (читает API-ключ из хранилища).
+    // The Jev AI request is made by the service worker (it reads the API key from storage).
     const response = await chrome.runtime.sendMessage({ action: "analyze_page", pageData });
     if (!response || !response.success) {
-      renderInPageAiSummary(null, (response && response.error) || "Неизвестная ошибка Jev AI");
+      renderInPageAiSummary(null, (response && response.error) || "Unknown Jev AI error");
       return;
     }
     renderInPageAiSummary(response.result, null);
@@ -334,24 +334,24 @@ async function runInPageScan() {
 }
 
 // --------------------------------------------------------------------------
-// Автоматическое удаление опасных элементов при загрузке страницы.
-// Включается настройкой jevAutoRemoveDangerous в chrome.storage.local (по
-// умолчанию выключено). Локальная эвристика работает без обращения к Jev AI.
+// Automatic removal of dangerous elements on page load.
+// Enabled by the jevAutoRemoveDangerous setting in chrome.storage.local
+// (off by default). The local heuristic runs without calling Jev AI.
 // --------------------------------------------------------------------------
 
 let jevAutoRemoveEnabled = false;
 let jevAutoRemoveObserver = null;
 let jevAutoRemoveTimer = null;
 
-// Полное сканирование DOM и удаление всех найденных опасных элементов.
+// Full DOM scan removing every dangerous element found.
 function jevAutoRemoveDangerous() {
   const findings = detectDangerousElements();
   if (!findings.length) return;
   removeAllFindings();
 }
 
-// Реагируем только на появление новых узлов, игнорируя собственный UI
-// расширения (панели находок и оценки Jev AI), чтобы не зациклиться.
+// React only to new nodes, ignoring the extension's own UI
+// (findings and Jev AI panels), so we do not loop forever.
 function jevAutoMutationsRelevant(mutations) {
   for (const mutation of mutations) {
     for (const node of mutation.addedNodes) {
@@ -364,7 +364,7 @@ function jevAutoMutationsRelevant(mutations) {
   return false;
 }
 
-// Отложенный запуск, чтобы серия вставок не вызывала многократное сканирование.
+// Debounced trigger, so a burst of insertions does not cause repeated scans.
 function jevScheduleAutoRemove() {
   if (!jevAutoRemoveEnabled) return;
   clearTimeout(jevAutoRemoveTimer);
@@ -380,7 +380,7 @@ function jevStartAutoRemove() {
     if (jevAutoMutationsRelevant(mutations)) jevScheduleAutoRemove();
   });
   jevAutoRemoveObserver.observe(root, { childList: true, subtree: true });
-  // Первичное сканирование, когда DOM уже построен.
+  // Initial scan once the DOM is already built.
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', jevAutoRemoveDangerous, { once: true });
   } else {
@@ -402,7 +402,7 @@ function jevApplyAutoRemove(enabled) {
   else jevStopAutoRemove();
 }
 
-// Читаем настройку при инициализации и следим за её изменением из popup.
+// Read the setting at init and watch for changes coming from the popup.
 chrome.storage.local.get(['jevAutoRemoveDangerous'], (stored) => {
   jevApplyAutoRemove(!!stored.jevAutoRemoveDangerous);
 });
@@ -413,7 +413,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-// Достаёт вероятность из ответа Jev AI в процентах.
+// Extracts a probability from the Jev AI response as a percentage.
 function jevMetricPercent(answer, field) {
   if (!answer) return 0;
   const raw = typeof answer[field] === 'number' ? answer[field]
@@ -422,24 +422,24 @@ function jevMetricPercent(answer, field) {
 }
 
 const JEV_CATEGORY_LABELS = {
-  "safe": "Безопасно",
-  "insecure_form": "Незащищенная форма (HTTP)",
-  "suspicious_scripts": "Подозрительные скрипты",
-  "clickjacking_risk": "Риск Clickjacking (iframe)",
-  "mixed_content": "Смешанный контент (HTTP/HTTPS)",
-  "credential_harvest": "Обманный сбор учётных данных",
-  "data_exfiltration": "Утечка данных на сторонние домены",
-  "deceptive_ui": "Вводящий в заблуждение интерфейс"
+  "safe": "Safe",
+  "insecure_form": "Insecure form (HTTP)",
+  "suspicious_scripts": "Suspicious scripts",
+  "clickjacking_risk": "Clickjacking risk (iframe)",
+  "mixed_content": "Mixed content (HTTP/HTTPS)",
+  "credential_harvest": "Deceptive credential harvesting",
+  "data_exfiltration": "Data exfiltration to third-party domains",
+  "deceptive_ui": "Deceptive UI"
 };
 
-// Цветовой статус риска по проценту (как в popup).
+// Risk color status by percentage (same as in the popup).
 function jevMetricClass(percent) {
   if (percent < 30) return 'jev-ai-safe';
   if (percent < 70) return 'jev-ai-warn';
   return 'jev-ai-danger';
 }
 
-// Мини-панель с оценкой безопасности страницы от Jev AI (левый нижний угол).
+// Mini-panel with the Jev AI page safety assessment (bottom-left corner).
 function renderInPageAiSummary(aiResult, errorMessage) {
   const existing = document.getElementById('jev-ai-panel');
   if (existing) existing.remove();
@@ -452,7 +452,7 @@ function renderInPageAiSummary(aiResult, errorMessage) {
   header.className = 'jev-ai-panel-header';
 
   const title = document.createElement('span');
-  title.textContent = '🛡️ Jev AI: безопасность страницы';
+  title.textContent = '🛡️ Jev AI: page safety';
 
   const close = document.createElement('button');
   close.className = 'jev-btn-close';
@@ -496,11 +496,11 @@ function renderInPageAiSummary(aiResult, errorMessage) {
       body.appendChild(line);
     };
 
-    addRow('Угроза фишинга', `${phishing}%`, jevMetricClass(phishing));
-    addRow('Сбор учётных данных', `${harvest}%`, jevMetricClass(harvest));
-    addRow('Основной вектор', JEV_CATEGORY_LABELS[categoryKey] || categoryKey,
+    addRow('Phishing threat', `${phishing}%`, jevMetricClass(phishing));
+    addRow('Credential harvesting', `${harvest}%`, jevMetricClass(harvest));
+    addRow('Main vector', JEV_CATEGORY_LABELS[categoryKey] || categoryKey,
       categoryKey === 'safe' ? 'jev-ai-safe' : 'jev-ai-danger');
-    addRow('Индекс опасности', `${score} / 5`,
+    addRow('Risk index', `${score} / 5`,
       score >= 4 ? 'jev-ai-danger' : (score >= 3 ? 'jev-ai-warn' : 'jev-ai-safe'));
   }
 
@@ -511,7 +511,7 @@ function renderInPageAiSummary(aiResult, errorMessage) {
   const clearBtn = document.createElement('button');
   clearBtn.className = 'jev-btn-link';
   clearBtn.type = 'button';
-  clearBtn.textContent = 'Снять подсветку';
+  clearBtn.textContent = 'Clear highlights';
   clearBtn.addEventListener('click', () => {
     clearHighlights();
     panel.remove();
@@ -522,20 +522,20 @@ function renderInPageAiSummary(aiResult, errorMessage) {
   document.body.appendChild(panel);
 }
 
-// Слушатель сообщений от popup.js или background.js
+// Message listener from popup.js or background.js
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "scan_page") {
     try {
-      // 1. Собираем структуру страницы.
+      // 1. Collect the page structure.
       const pageData = collectPageSecurityData();
       jevLastPageSummary = pageData;
-      // 2. Локально находим потенциально опасные элементы.
+      // 2. Locally find potentially dangerous elements.
       const findings = detectDangerousElements();
       pageData.findings = findings;
-      // 3. Сразу подсвечиваем их прямо на странице.
+      // 3. Immediately highlight them right on the page.
       highlightFindings(findings);
       
-      // Отправляем структурированные данные обратно в фоновый скрипт
+      // Send the structured data back to the background script.
       sendResponse({ success: true, data: pageData });
     } catch (error) {
       sendResponse({ success: false, error: error.message });
@@ -554,14 +554,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.action === "remove_all_findings") {
     sendResponse({ success: true, removed: removeAllFindings() });
   }
-  return true; // Держим канал связи открытым для асинхронного ответа
+  return true; // Keep the channel open for the asynchronous response
 });
 
 // --------------------------------------------------------------------------
-// Визуализация опасных элементов на странице
+// Visualization of dangerous elements on the page
 // --------------------------------------------------------------------------
 
-// Заменяет title элемента, сохраняя оригинальное значение.
+// Replaces the element's title, remembering the original value.
 function jevSetFindingTitle(el, text) {
   if (!jevOriginalTitles.has(el)) {
     jevOriginalTitles.set(el, el.hasAttribute('title') ? el.getAttribute('title') : null);
@@ -569,7 +569,7 @@ function jevSetFindingTitle(el, text) {
   el.setAttribute('title', text);
 }
 
-// Снимает подсветку и панель, восстанавливает оригинальные title.
+// Removes highlights and the panel, restores the original titles.
 function clearHighlights() {
   document.querySelectorAll('.jev-danger-highlight').forEach(el => {
     if (jevOriginalTitles.has(el)) {
@@ -586,7 +586,7 @@ function clearHighlights() {
   jevCurrentFindings = [];
 }
 
-// Прокручивает страницу к элементу и подсвечивает его вспышкой.
+// Scrolls the page to the element and flashes it.
 function focusFinding(id) {
   const el = jevFindingElements.get(id);
   if (!el || !el.isConnected) return;
@@ -595,7 +595,7 @@ function focusFinding(id) {
   setTimeout(() => el.classList.remove('jev-danger-flash'), 1600);
 }
 
-// Удаляет DOM-элемент находки со страницы. Возвращает true, если что-то удалено.
+// Removes the finding's DOM element from the page. Returns true if something was removed.
 function removeFinding(id) {
   const el = jevFindingElements.get(id);
   if (!el || !el.isConnected) {
@@ -609,7 +609,7 @@ function removeFinding(id) {
   return true;
 }
 
-// Удаляет все найденные опасные элементы. Возвращает число удалённых.
+// Removes all detected dangerous elements. Returns how many were removed.
 function removeAllFindings() {
   let removed = 0;
   for (const [id, el] of Array.from(jevFindingElements)) {
@@ -623,7 +623,7 @@ function removeAllFindings() {
   return removed;
 }
 
-// Перерисовывает панель по актуальному списку (отбрасывает отвалившиеся элементы).
+// Re-renders the panel from the up-to-date list (drops detached elements).
 function refreshDangerPanel() {
   jevCurrentFindings = jevCurrentFindings.filter(finding => {
     const el = jevFindingElements.get(finding.id);
@@ -632,21 +632,21 @@ function refreshDangerPanel() {
   renderDangerPanel(jevCurrentFindings);
 }
 
-// Строки сводки по структуре страницы (пары label -> value).
+// Summary rows of the page structure (label -> value pairs).
 function jevBuildSummaryRows(data) {
   const links = (data && data.linksSummary) || {};
   return [
-    ['Формы', (data.forms || []).length],
-    ['Скрипты', (data.scripts || []).length],
+    ['Forms', (data.forms || []).length],
+    ['Scripts', (data.scripts || []).length],
     ['iframe', (data.iframes || []).length],
-    ['Внешние ссылки', `${links.crossOrigin || 0} / ${links.total || 0}`],
-    ['javascript:/data: ссылки', (links.javascript || 0) + (links.data || 0)],
-    ['Смешанный контент', (data.mixedContent || []).length]
+    ['Cross-origin links', `${links.crossOrigin || 0} / ${links.total || 0}`],
+    ['javascript:/data: links', (links.javascript || 0) + (links.data || 0)],
+    ['Mixed content', (data.mixedContent || []).length]
   ];
 }
 
-// Панель со сводкой по структуре и списком найденных опасных элементов
-// (правый нижний угол страницы).
+// Panel with the page structure summary and the list of detected dangerous
+// elements (bottom-right corner of the page).
 function renderDangerPanel(findings) {
   const existing = document.getElementById('jev-danger-panel');
   if (existing) existing.remove();
@@ -661,8 +661,8 @@ function renderDangerPanel(findings) {
 
   const title = document.createElement('span');
   title.textContent = findings.length
-    ? `⚠️ Потенциально опасные элементы: ${findings.length}`
-    : 'ℹ️ Опасных элементов не обнаружено';
+    ? `⚠️ Potentially dangerous elements: ${findings.length}`
+    : 'ℹ️ No dangerous elements detected';
 
   const close = document.createElement('button');
   close.className = 'jev-btn-close';
@@ -673,7 +673,7 @@ function renderDangerPanel(findings) {
   const removeAll = document.createElement('button');
   removeAll.className = 'jev-btn-link';
   removeAll.type = 'button';
-  removeAll.textContent = 'Удалить все';
+  removeAll.textContent = 'Remove all';
   removeAll.addEventListener('click', removeAllFindings);
 
   header.appendChild(title);
@@ -681,7 +681,7 @@ function renderDangerPanel(findings) {
   header.appendChild(close);
   panel.appendChild(header);
 
-  // Сводка по структуре страницы (формы, скрипты, фреймы, ссылки).
+  // Page structure summary (forms, scripts, frames, links).
   if (jevLastPageSummary) {
     const summary = document.createElement('div');
     summary.className = 'jev-danger-panel-summary';
@@ -699,7 +699,7 @@ function renderDangerPanel(findings) {
   if (!findings.length) {
     const empty = document.createElement('div');
     empty.className = 'jev-danger-empty';
-    empty.textContent = 'Опасных элементов не обнаружено';
+    empty.textContent = 'No dangerous elements detected';
     list.appendChild(empty);
   }
 
@@ -715,8 +715,8 @@ function renderDangerPanel(findings) {
     const removeBtn = document.createElement('button');
     removeBtn.className = 'jev-btn-remove';
     removeBtn.type = 'button';
-    removeBtn.textContent = 'Удалить';
-    removeBtn.title = 'Удалить элемент со страницы';
+    removeBtn.textContent = 'Remove';
+    removeBtn.title = 'Remove the element from the page';
     removeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       removeFinding(finding.id);
@@ -731,7 +731,7 @@ function renderDangerPanel(findings) {
   document.body.appendChild(panel);
 }
 
-// Подсвечивает найденные элементы и строит панель-отчёт.
+// Highlights the detected elements and builds the report panel.
 function highlightFindings(findings) {
   clearHighlights();
   jevCurrentFindings = findings;

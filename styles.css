@@ -1,7 +1,7 @@
 /* ==========================================================================
-   Jev Page Safety — стили контент-скрипта
-   Показывает подсвеченные элементы, которые могут быть скомпрометированы,
-   панель-отчёт с находками и мини-панель оценки от Jev AI.
+   Jev Page Safety — content script styles
+   Highlights elements that may be compromised,
+   the findings report panel and the Jev AI assessment mini-panel.
    ========================================================================== */
 
 .jev-btn-link {
@@ -56,7 +56,7 @@
 }
 
 /* ==========================================================================
-   Подсветка потенциально опасных элементов на странице (Jev Page Safety)
+   Highlighting of potentially dangerous elements on the page (Jev Page Safety)
    ========================================================================== */
 
 .jev-danger-highlight {
@@ -94,7 +94,7 @@
   50% { box-shadow: 0 0 0 8px rgba(250, 204, 21, 0.6); }
 }
 
-/* Панель-отчёт в правом нижнем углу */
+/* Findings report panel in the bottom-right corner */
 .jev-danger-panel {
   position: fixed !important;
   right: 12px !important;
@@ -125,7 +125,7 @@
   border-bottom: 1px solid #e5e7eb !important;
 }
 
-/* Сводка по структуре страницы в верхней части панели */
+/* Page structure summary at the top of the panel */
 .jev-danger-panel-summary {
   display: flex !important;
   flex-direction: column !important;
@@ -213,7 +213,7 @@
 }
 
 /* ==========================================================================
-   Мини-панель оценки безопасности страницы от Jev AI (левый нижний угол)
+   Jev AI page safety assessment mini-panel (bottom-left corner)
    ========================================================================== */
 
 .jev-ai-panel {

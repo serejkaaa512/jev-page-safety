@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Настройки: API-ключ TypeSafe Jev сохраняется в chrome.storage.local
+// Settings: the TypeSafe Jev API key is stored in chrome.storage.local
 // ---------------------------------------------------------------------------
 const apiKeyInput = document.getElementById('apiKey');
 const saveBtn = document.getElementById('saveBtn');
@@ -26,19 +26,19 @@ saveBtn.addEventListener('click', () => {
   const key = apiKeyInput.value.trim();
   chrome.storage.local.set({ jevApiKey: key }, () => {
     saveBtn.classList.add('saved');
-    saveBtn.textContent = 'Сохранено ✓';
+    saveBtn.textContent = 'Saved ✓';
     clearTimeout(saveBtnTimer);
     saveBtnTimer = setTimeout(() => {
       saveBtn.classList.remove('saved');
-      saveBtn.textContent = 'Сохранить настройки';
+      saveBtn.textContent = 'Save settings';
     }, 1600);
-    showSaveStatus(key ? 'API-ключ сохранён' : 'API-ключ очищен', true);
+    showSaveStatus(key ? 'API key saved' : 'API key cleared', true);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Автоудаление опасных элементов при загрузке страницы (по умолчанию выключено).
-// Настройка читается content.js и применяется без перезагрузки страницы.
+// Auto-removal of dangerous elements on page load (off by default).
+// The setting is read by content.js and applied without reloading the page.
 // ---------------------------------------------------------------------------
 const autoRemoveInput = document.getElementById('autoRemove');
 
@@ -48,7 +48,7 @@ chrome.storage.local.get(['jevAutoRemoveDangerous'], (result) => {
 
 autoRemoveInput.addEventListener('change', () => {
   chrome.storage.local.set({ jevAutoRemoveDangerous: autoRemoveInput.checked }, () => {
-    showSaveStatus(autoRemoveInput.checked ? 'Автоудаление включено' : 'Автоудаление выключено', true);
+    showSaveStatus(autoRemoveInput.checked ? 'Auto-removal enabled' : 'Auto-removal disabled', true);
   });
 });
 
@@ -61,38 +61,38 @@ document.getElementById('scanBtn').addEventListener('click', async () => {
   loader.style.display = 'block';
   resultBox.style.display = 'none';
 
-  // 1. Получаем активную вкладку браузера
+  // 1. Get the active browser tab
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   
   if (!tab) {
-    alert("Не удалось найти активную вкладку.");
+    alert("Could not find an active tab.");
     resetUI();
     return;
   }
 
-  // 2. Отправляем сигнал в content.js для сбора структуры DOM
+  // 2. Send a message to content.js to collect the DOM structure
   chrome.tabs.sendMessage(tab.id, { action: "scan_page" }, (response) => {
-    // lastError возникает, если content script недоступен (страница не обновлена
-    // после установки расширения или это служебная страница).
+    // lastError appears when the content script is unavailable (the page was not
+    // reloaded after the extension was installed, or it is a browser page).
     if (chrome.runtime.lastError || !response || !response.success) {
-      alert("Не удалось просканировать страницу. Обновите вкладку и попробуйте снова.");
+      alert("Failed to scan the page. Reload the tab and try again.");
       resetUI();
       return;
     }
 
-    // 3. Отправляем очищенный JSON в background.js для запроса к Jev AI
+    // 3. Send the sanitized JSON to background.js for the Jev AI request
     chrome.runtime.sendMessage({ action: "analyze_page", pageData: response.data }, (apiResponse) => {
       resetUI();
 
-      // Если service worker не ответил (порт закрылся), callback приходит с lastError.
+      // If the service worker did not answer (the port closed), the callback arrives with lastError.
       if (chrome.runtime.lastError) {
-        alert("Сервис Jev AI недоступен: " + chrome.runtime.lastError.message);
+        alert("Jev AI service is unavailable: " + chrome.runtime.lastError.message);
         return;
       }
       if (apiResponse && apiResponse.success) {
         renderResults(apiResponse.result);
       } else {
-        alert("Ошибка при обращении к Jev AI: " + (apiResponse?.error || "Unknown error"));
+        alert("Jev AI request failed: " + (apiResponse?.error || "Unknown error"));
       }
     });
   });
@@ -103,13 +103,13 @@ function resetUI() {
   document.getElementById('loader').style.display = 'none';
 }
 
-// 4. Парсинг строго типизированного ответа от Jev AI и отрисовка
+// 4. Parses the strictly typed Jev AI response and renders the metrics
 function renderResults(jevOutput) {
   const resultBox = document.getElementById('resultBox');
   resultBox.style.display = 'block';
 
-  // 1. Разбираем ответ Noul (Угроза фишинга)
-  // В ответе: jevOutput.phishing_prob.noul содержит значение (например, 0.23)
+  // 1. Parse the Noul response (phishing threat)
+  // In the response: jevOutput.phishing_prob.noul holds the value (e.g. 0.23)
   const phishingProb = (jevOutput.phishing_prob && typeof jevOutput.phishing_prob.noul === 'number') 
     ? jevOutput.phishing_prob.noul 
     : 0.0;
@@ -123,16 +123,16 @@ function renderResults(jevOutput) {
   
   if (phishingPercentage < 30) {
     pVal.className = "metric-value risk-safe";
-    pBar.style.backgroundColor = "#16a34a"; // Зеленый
+    pBar.style.backgroundColor = "#16a34a"; // green
   } else if (phishingPercentage < 70) {
     pVal.className = "metric-value risk-warning";
-    pBar.style.backgroundColor = "#d97706"; // Желтый
+    pBar.style.backgroundColor = "#d97706"; // yellow
   } else {
     pVal.className = "metric-value risk-danger";
-    pBar.style.backgroundColor = "#dc2626"; // Красный
+    pBar.style.backgroundColor = "#dc2626"; // red
   }
 
-  // 1b. Разбираем ответ Noul (Обманный сбор учётных данных)
+  // 1b. Parse the Noul response (deceptive credential harvesting)
   const harvestProb = (jevOutput.credential_harvest && typeof jevOutput.credential_harvest.noul === 'number')
     ? jevOutput.credential_harvest.noul
     : 0.0;
@@ -154,22 +154,22 @@ function renderResults(jevOutput) {
     hBar.style.backgroundColor = "#dc2626";
   }
 
-  // 2. Разбираем ответ Choice (Основной вектор атаки)
-  // В ответе: jevOutput.risk_category.choice содержит строку-ключ (например, "safe")
+  // 2. Parse the Choice response (main attack vector)
+  // In the response: jevOutput.risk_category.choice holds a key string (e.g. "safe")
   const categoryKey = (jevOutput.risk_category && jevOutput.risk_category.choice) 
     ? jevOutput.risk_category.choice 
     : "safe";
   
-  // Маппинг ключей на понятный для пользователя язык
+  // Mapping of keys to user-friendly language
   const categoryLabels = {
-    "safe": "Безопасно",
-    "insecure_form": "Незащищенная форма (HTTP)",
-    "suspicious_scripts": "Подозрительные скрипты",
-    "clickjacking_risk": "Риск Clickjacking (iframe)",
-    "mixed_content": "Смешанный контент (HTTP/HTTPS)",
-    "credential_harvest": "Обманный сбор учётных данных",
-    "data_exfiltration": "Утечка данных на сторонние домены",
-    "deceptive_ui": "Вводящий в заблуждение интерфейс"
+    "safe": "Safe",
+    "insecure_form": "Insecure form (HTTP)",
+    "suspicious_scripts": "Suspicious scripts",
+    "clickjacking_risk": "Clickjacking risk (iframe)",
+    "mixed_content": "Mixed content (HTTP/HTTPS)",
+    "credential_harvest": "Deceptive credential harvesting",
+    "data_exfiltration": "Data exfiltration to third-party domains",
+    "deceptive_ui": "Deceptive UI"
   };
 
   const category = categoryLabels[categoryKey] || categoryKey;
@@ -177,10 +177,10 @@ function renderResults(jevOutput) {
   cVal.innerText = category;
   cVal.className = "metric-value " + (categoryKey === "safe" ? "risk-safe" : "risk-danger");
 
-  // 3. Разбираем ответ Score (Индекс опасности)
-  // В ответе: jevOutput.severity_score.score содержит дробное число (например, 1.54)
-  // Так как массив критериев был от 0 до 4 (5 уровней), Jev считает индекс от 0.
-  // Прибавим 1, чтобы шкала для пользователя была от 1 до 5.
+  // 3. Parse the Score response (risk index)
+  // In the response: jevOutput.severity_score.score holds a float (e.g. 1.54)
+  // The criteria array spans 0..4 (5 levels), so Jev computes the index from 0.
+  // We add 1 so the user-facing scale runs from 1 to 5.
   const rawScore = (jevOutput.severity_score && typeof jevOutput.severity_score.score === 'number') 
     ? jevOutput.severity_score.score 
     : 0.0;

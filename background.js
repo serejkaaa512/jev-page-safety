@@ -1,16 +1,16 @@
 const TYPESAFE_API_URL = "https://api.typesafe.ai/v1/systemone";
 const SCAN_PAGE_MENU_ID = "jev-scan-page";
 
-// Контекстное меню создаётся один раз при установке/обновлении расширения.
+// The context menu is created once on extension install/update.
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: SCAN_PAGE_MENU_ID,
-    title: "Jev: проверить безопасность страницы",
+    title: "Jev: check page safety",
     contexts: ["page", "selection"]
   });
 });
 
-// Клик по меню запускает полное сканирование на активной вкладке.
+// Clicking the menu triggers a full scan on the active tab.
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === SCAN_PAGE_MENU_ID && tab && tab.id) {
     chrome.tabs.sendMessage(tab.id, { action: "scan_page_from_menu" }, () => {
@@ -26,7 +26,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       try {
         let cleanState = request.pageData;
 
-        // API-ключ хранится в chrome.storage.local и задаётся в настройках popup.
+        // The API key lives in chrome.storage.local and is set in the popup settings.
         const userApiKey = await new Promise((resolve) => {
           chrome.storage.local.get(["jevApiKey"], (stored) => {
             resolve((stored.jevApiKey || "").trim());
@@ -35,31 +35,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (!userApiKey) {
           sendResponse({
             success: false,
-            error: "API-ключ не задан. Откройте popup расширения и сохраните его в настройках."
+            error: "API key is missing. Open the extension popup and save it in the settings."
           });
           return;
         }
         
-        // Защита от перегрузки контекста (лимит 32k токенов)
+        // Guard against oversized context (32k token limit)
         if (cleanState && cleanState.scripts && cleanState.scripts.length > 50) {
           cleanState.scripts = cleanState.scripts.slice(0, 50);
         }
 
-        // Формируем структуру вопросов строго по спецификации TypeSafe API
+        // Build the question structure strictly per the TypeSafe API specification
         const questions = {
-          // 1. Noul: бинарный вопрос. Принимает instructions и необязательный criteria
+          // 1. Noul: binary question. Accepts instructions and optional criteria
           phishing_prob: {
             type: "noul",
             instructions: "Is this web page structure indicative of a phishing template or deceptive credentials harvesting?"
           },
           
-          // 1b. Noul: сбор учётных данных обманным путём
+          // 1b. Noul: deceptive credential harvesting
           credential_harvest: {
             type: "noul",
             instructions: "Does this page contain forms or UI patterns designed to deceptively harvest sensitive credentials (passwords, card data, tokens)?"
           },
 
-          // 2. Choice: criteria должен быть объектом с описанием каждой опции!
+          // 2. Choice: criteria must be an object describing every option!
           risk_category: {
             type: "choice",
             instructions: "What is the primary security vulnerability or risk vector present on this page?",
@@ -75,7 +75,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
           },
           
-          // 3. Score: criteria должен быть массивом (минимум 2 элемента, от низшего к высшему)
+          // 3. Score: criteria must be an array (at least 2 items, lowest to highest)
           severity_score: {
             type: "score",
             instructions: "Rate the overall security risk level of this page layout and scripts configuration.",
@@ -98,12 +98,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           },
           body: JSON.stringify({
             model: "jev-latest",
-            state: JSON.stringify(cleanState), // Передаем состояние как валидную JSON строку
+            state: JSON.stringify(cleanState), // Send the state as a valid JSON string
             questions: questions
           })
         });
 
-        // Безопасный перехват любых ошибок валидации со стороны API
+        // Safely intercept any API-side validation errors
         if (!response.ok) {
           const errText = await response.text();
           sendResponse({ success: false, error: `API ${response.status}: ${errText}` });
@@ -124,6 +124,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
     })();
 
-    return true; // Держим асинхронный канал открытым для popup.js
+    return true; // Keep the async channel open for popup.js
   }
 });

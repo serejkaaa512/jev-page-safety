@@ -32,16 +32,16 @@
     .metric-title { font-size: 0.85rem; color: #4b5563; margin-bottom: 4px; }
     .metric-value { font-size: 1rem; font-weight: bold; display: flex; justify-content: space-between; }
     
-    /* Прогресс-бар для вероятностей */
+    /* Progress bar for probabilities */
     .bar-container { background: #e5e7eb; height: 6px; border-radius: 3px; margin-top: 5px; overflow: hidden; }
     .bar { height: 100%; width: 0%; transition: width 0.3s, background-color 0.3s; }
     
-    /* Цветовые статусы риска */
+    /* Risk color statuses */
     .risk-safe { color: #16a34a; }
     .risk-warning { color: #d97706; }
     .risk-danger { color: #dc2626; }
 
-    /* Настройки: сохранение API-ключа */
+    /* Settings: saving the API key */
     .settings-card {
       background: #ffffff;
       border: 1px solid #e5e7eb;
@@ -69,7 +69,7 @@
     #saveBtn:hover { background-color: #4b5563; }
     #saveBtn.saved { background-color: #16a34a; }
 
-    /* Переключатель автоудаления опасных элементов при загрузке страницы */
+    /* Toggle for automatic removal of dangerous elements on page load */
     .toggle-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; }
     .settings-card .toggle-row label {
       display: block;
@@ -94,48 +94,48 @@
 
   <h3>Jev AI Shield <span class="badge">System 1</span></h3>
 
-  <!-- Настройки: API-ключ TypeSafe Jev хранится в chrome.storage.local -->
+  <!-- Settings: the TypeSafe Jev API key is stored in chrome.storage.local -->
   <div class="settings-card">
     <label for="apiKey">TypeSafe Jev API token</label>
     <input type="password" id="apiKey" placeholder="apikey_..." autocomplete="off">
-    <button id="saveBtn" aria-label="Сохранить настройки">Сохранить настройки</button>
+    <button id="saveBtn" aria-label="Save settings">Save settings</button>
     <div id="saveStatus" class="save-status" role="status" aria-live="polite"></div>
 
-    <!-- Автоудаление опасных элементов при загрузке страницы -->
+    <!-- Automatic removal of dangerous elements on page load -->
     <div class="toggle-row">
       <input type="checkbox" id="autoRemove">
-      <label for="autoRemove">Автоматически удалять опасные элементы при загрузке страницы</label>
+      <label for="autoRemove">Automatically remove dangerous elements on page load</label>
     </div>
   </div>
 
-  <button id="scanBtn">Сканировать страницу</button>
+  <button id="scanBtn">Scan page</button>
 
-  <div id="loader">Анализ структуры Jev AI (~100мс)...</div>
+  <div id="loader">Jev AI structure analysis (~100ms)...</div>
 
   <div id="resultBox" class="result-box">
-    <!-- Метрика 1: Вероятность фишинга (Noul) -->
+    <!-- Metric 1: Phishing probability (Noul) -->
     <div class="metric">
-      <div class="metric-title">Угроза фишинга / Спуфинга (Noul)</div>
+      <div class="metric-title">Phishing / spoofing threat (Noul)</div>
       <div class="metric-value" id="phishingVal">0%</div>
       <div class="bar-container"><div id="phishingBar" class="bar"></div></div>
     </div>
 
-    <!-- Метрика 1b: Обманный сбор данных (Noul) -->
+    <!-- Metric 1b: Deceptive data harvesting (Noul) -->
     <div class="metric">
-      <div class="metric-title">Обманный сбор учётных данных (Noul)</div>
+      <div class="metric-title">Credential harvesting (Noul)</div>
       <div class="metric-value" id="harvestVal">0%</div>
       <div class="bar-container"><div id="harvestBar" class="bar"></div></div>
     </div>
 
-    <!-- Метрика 2: Категория риска (Choice) -->
+    <!-- Metric 2: Risk category (Choice) -->
     <div class="metric">
-      <div class="metric-title">Основной вектор атаки (Choice)</div>
+      <div class="metric-title">Main attack vector (Choice)</div>
       <div class="metric-value" id="categoryVal">-</div>
     </div>
 
-    <!-- Метрика 3: Общий уровень опасности (Score) -->
+    <!-- Metric 3: Overall risk level (Score) -->
     <div class="metric">
-      <div class="metric-title">Индекс опасности кода (Score)</div>
+      <div class="metric-title">Code risk index (Score)</div>
       <div class="metric-value"><span id="scoreVal">0/5</span></div>
       <div class="bar-container"><div id="scoreBar" class="bar"></div></div>
     </div>

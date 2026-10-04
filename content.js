@@ -17,6 +17,8 @@ const JEV_SEVERITY_ORDER = { critical: 3, high: 2, medium: 1, low: 0 };
 const JEV_MAX_FINDINGS = 40;
 // Находки, показанные в данный момент (для синхронизации панели после удаления).
 let jevCurrentFindings = [];
+// Сводка по структуре последней просканированной страницы (для панели на странице).
+let jevLastPageSummary = null;
 
 // --------------------------------------------------------------------------
 // Вспомогательные функции
@@ -313,6 +315,7 @@ function detectDangerousElements() {
 async function runInPageScan() {
   try {
     const pageData = collectPageSecurityData();
+    jevLastPageSummary = pageData;
     const findings = detectDangerousElements();
     pageData.findings = findings;
     // Сразу подсвечиваем локально найденные опасные элементы.
@@ -525,6 +528,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     try {
       // 1. Собираем структуру страницы.
       const pageData = collectPageSecurityData();
+      jevLastPageSummary = pageData;
       // 2. Локально находим потенциально опасные элементы.
       const findings = detectDangerousElements();
       pageData.findings = findings;
@@ -628,11 +632,25 @@ function refreshDangerPanel() {
   renderDangerPanel(jevCurrentFindings);
 }
 
-// Панель со списком найденных опасных элементов (правый нижний угол).
+// Строки сводки по структуре страницы (пары label -> value).
+function jevBuildSummaryRows(data) {
+  const links = (data && data.linksSummary) || {};
+  return [
+    ['Формы', (data.forms || []).length],
+    ['Скрипты', (data.scripts || []).length],
+    ['iframe', (data.iframes || []).length],
+    ['Внешние ссылки', `${links.crossOrigin || 0} / ${links.total || 0}`],
+    ['javascript:/data: ссылки', (links.javascript || 0) + (links.data || 0)],
+    ['Смешанный контент', (data.mixedContent || []).length]
+  ];
+}
+
+// Панель со сводкой по структуре и списком найденных опасных элементов
+// (правый нижний угол страницы).
 function renderDangerPanel(findings) {
   const existing = document.getElementById('jev-danger-panel');
   if (existing) existing.remove();
-  if (!findings.length) return;
+  if (!findings.length && !jevLastPageSummary) return;
 
   const panel = document.createElement('div');
   panel.id = 'jev-danger-panel';
@@ -642,7 +660,9 @@ function renderDangerPanel(findings) {
   header.className = 'jev-danger-panel-header';
 
   const title = document.createElement('span');
-  title.textContent = `⚠️ Потенциально опасные элементы: ${findings.length}`;
+  title.textContent = findings.length
+    ? `⚠️ Потенциально опасные элементы: ${findings.length}`
+    : 'ℹ️ Опасных элементов не обнаружено';
 
   const close = document.createElement('button');
   close.className = 'jev-btn-close';
@@ -657,12 +677,31 @@ function renderDangerPanel(findings) {
   removeAll.addEventListener('click', removeAllFindings);
 
   header.appendChild(title);
-  header.appendChild(removeAll);
+  if (findings.length) header.appendChild(removeAll);
   header.appendChild(close);
   panel.appendChild(header);
 
+  // Сводка по структуре страницы (формы, скрипты, фреймы, ссылки).
+  if (jevLastPageSummary) {
+    const summary = document.createElement('div');
+    summary.className = 'jev-danger-panel-summary';
+    summary.innerHTML = jevBuildSummaryRows(jevLastPageSummary)
+      .map(([label, value]) =>
+        `<div class="jev-summary-row"><span>${jevEscapeHtml(label)}</span>` +
+        `<strong>${jevEscapeHtml(String(value))}</strong></div>`)
+      .join('');
+    panel.appendChild(summary);
+  }
+
   const list = document.createElement('div');
   list.className = 'jev-danger-panel-list';
+
+  if (!findings.length) {
+    const empty = document.createElement('div');
+    empty.className = 'jev-danger-empty';
+    empty.textContent = 'Опасных элементов не обнаружено';
+    list.appendChild(empty);
+  }
 
   findings.forEach(finding => {
     const item = document.createElement('div');

@@ -34,42 +34,13 @@
     
     /* Прогресс-бар для вероятностей */
     .bar-container { background: #e5e7eb; height: 6px; border-radius: 3px; margin-top: 5px; overflow: hidden; }
-    .bar { height: 100%; width: 0%; transition: width 0.3s; background-color: 0.3s }
+    .bar { height: 100%; width: 0%; transition: width 0.3s, background-color 0.3s; }
     
     /* Цветовые статусы риска */
     .risk-safe { color: #16a34a; }
     .risk-warning { color: #d97706; }
     .risk-danger { color: #dc2626; }
 
-    /* Сводка по структуре страницы */
-    .summary-row { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 2px 0; }
-    .summary-row strong { font-weight: 600; }
-
-    /* Список потенциально опасных элементов */
-    .findings-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
-    .finding-item { border-left: 3px solid #9ca3af; background: #f9fafb; border-radius: 4px; padding: 6px 8px; cursor: pointer; }
-    .finding-item:hover { background: #f3f4f6; }
-    .finding-item.severity-critical { border-left-color: #b91c1c; }
-    .finding-item.severity-high { border-left-color: #ea580c; }
-    .finding-item.severity-medium { border-left-color: #d97706; }
-    .finding-item.severity-low { border-left-color: #2563eb; }
-    .finding-title { font-size: 0.8rem; font-weight: 600; color: #111827; display: flex; justify-content: space-between; gap: 6px; }
-    .finding-detail { font-size: 0.72rem; color: #6b7280; word-break: break-all; }
-    .findings-empty { font-size: 0.8rem; color: #16a34a; }
-    #clearBtn { margin-top: 10px; background-color: #6b7280; display: none; }
-    #clearBtn:hover { background-color: #4b5563; }
-    #removeAllBtn { margin-top: 8px; background-color: #b91c1c; display: none; }
-    #removeAllBtn:hover { background-color: #991b1b; }
-    .finding-remove {
-      margin-top: 4px;
-      width: auto;
-      padding: 2px 8px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      background: #dc2626;
-    }
-    .finding-remove:hover { background: #b91c1c; }
-    
     /* Настройки: сохранение API-ключа */
     .settings-card {
       background: #ffffff;
@@ -169,28 +140,6 @@
       <div class="bar-container"><div id="scoreBar" class="bar"></div></div>
     </div>
   </div>
-
-  <!-- Сводка по структуре страницы -->
-  <div id="summaryBox" class="result-box">
-    <div class="metric">
-      <div class="metric-title">Структура страницы</div>
-      <div id="summaryList"></div>
-    </div>
-  </div>
-
-  <!-- Локально найденные опасные элементы -->
-  <div id="findingsBox" class="result-box">
-    <div class="metric">
-      <div class="metric-title">
-        Потенциально опасные элементы
-        <span id="findingsCount" class="badge">0</span>
-      </div>
-      <div id="findingsList" class="findings-list"></div>
-    </div>
-  </div>
-
-  <button id="clearBtn">Снять подсветку со страницы</button>
-  <button id="removeAllBtn">Удалить все найденные</button>
 
   <script src="popup.js"></script>
 </body>

@@ -1,5 +1,6 @@
 const TYPESAFE_API_URL = "https://api.typesafe.ai/v1/systemone";
 const SCAN_PAGE_MENU_ID = "jev-scan-page";
+const MISSING_KEY_ERROR = "API key is missing. Open the extension popup and save it in the settings.";
 
 // The context menu is created once on extension install/update.
 chrome.runtime.onInstalled.addListener(() => {
@@ -19,6 +20,45 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   }
 });
 
+// Reads the Jev API key from chrome.storage.local (set in the popup settings).
+function getApiKey() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["jevApiKey"], (stored) => {
+      resolve((stored.jevApiKey || "").trim());
+    });
+  });
+}
+
+// Single TypeSafe request strictly per the API specification.
+// Returns the answers object or throws with an error message.
+async function askJev(userApiKey, state, questions) {
+  const response = await fetch(TYPESAFE_API_URL, {
+    method: "POST",
+    mode: "cors",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${userApiKey}`
+    },
+    body: JSON.stringify({
+      model: "jev-latest",
+      state: JSON.stringify(state), // Send the state as a valid JSON string
+      questions: questions
+    })
+  });
+
+  // Safely intercept any API-side validation errors
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`API ${response.status}: ${errText}`);
+  }
+
+  const result = await response.json();
+  if (!result || !result.answers) {
+    throw new Error("Malformed response format from TypeSafe");
+  }
+  return result.answers;
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "analyze_page") {
     
@@ -27,16 +67,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         let cleanState = request.pageData;
 
         // The API key lives in chrome.storage.local and is set in the popup settings.
-        const userApiKey = await new Promise((resolve) => {
-          chrome.storage.local.get(["jevApiKey"], (stored) => {
-            resolve((stored.jevApiKey || "").trim());
-          });
-        });
+        const userApiKey = await getApiKey();
         if (!userApiKey) {
-          sendResponse({
-            success: false,
-            error: "API key is missing. Open the extension popup and save it in the settings."
-          });
+          sendResponse({ success: false, error: MISSING_KEY_ERROR });
           return;
         }
         
@@ -89,34 +122,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           }
         };
 
-        const response = await fetch(TYPESAFE_API_URL, {
-          method: "POST",
-          mode: "cors",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${userApiKey}`
-          },
-          body: JSON.stringify({
-            model: "jev-latest",
-            state: JSON.stringify(cleanState), // Send the state as a valid JSON string
-            questions: questions
-          })
-        });
-
-        // Safely intercept any API-side validation errors
-        if (!response.ok) {
-          const errText = await response.text();
-          sendResponse({ success: false, error: `API ${response.status}: ${errText}` });
-          return;
-        }
-
-        const result = await response.json();
-        
-        if (result && result.answers) {
-          sendResponse({ success: true, result: result.answers });
-        } else {
-          sendResponse({ success: false, error: "Malformed response format from TypeSafe" });
-        }
+        const answers = await askJev(userApiKey, cleanState, questions);
+        sendResponse({ success: true, result: answers });
 
       } catch (error) {
         console.error("Jev AI Fetch Error:", error);
@@ -125,5 +132,45 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     })();
 
     return true; // Keep the async channel open for popup.js
+  }
+
+  // Asks Jev AI one binary (noul) question per locally found vulnerability:
+  // can this vulnerability be used to attack this web page?
+  if (request.action === "assess_findings") {
+    (async () => {
+      try {
+        const findings = (request.pageData && request.pageData.findings) || [];
+        if (!findings.length) {
+          sendResponse({ success: true, answers: {} });
+          return;
+        }
+
+        const userApiKey = await getApiKey();
+        if (!userApiKey) {
+          sendResponse({ success: false, error: MISSING_KEY_ERROR });
+          return;
+        }
+
+        // One question per finding, keyed by the finding id.
+        const questions = {};
+        findings.forEach((finding) => {
+          questions[finding.id] = {
+            type: "noul",
+            instructions:
+              "Can this vulnerability be used to attack this web page? " +
+              `Vulnerability: ${finding.reason}. ` +
+              `Details: ${finding.detail || finding.selector}.`
+          };
+        });
+
+        const answers = await askJev(userApiKey, request.pageData, questions);
+        sendResponse({ success: true, answers });
+      } catch (error) {
+        console.error("Jev AI finding assessment error:", error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+
+    return true; // Keep the async channel open for content.js
   }
 });

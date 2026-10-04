@@ -186,6 +186,13 @@
   word-break: break-all !important;
 }
 
+/* Jev AI attack verdict of a finding in the danger panel. */
+.jev-danger-item-jev {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #2563eb !important;
+}
+
 @media (prefers-color-scheme: dark) {
   .jev-danger-panel {
     background: #1e1e24 !important;
@@ -209,6 +216,9 @@
   }
   .jev-danger-item-detail {
     color: #9ca3af !important;
+  }
+  .jev-danger-item-jev {
+    color: #60a5fa !important;
   }
 }
 

@@ -321,6 +321,8 @@ async function runInPageScan() {
     // Immediately highlight the dangerous elements found locally.
     highlightFindings(findings);
 
+    // Ask Jev AI whether each found vulnerability can be used to attack this page.
+    void askJevAboutFindings(pageData, findings);
     // The Jev AI request is made by the service worker (it reads the API key from storage).
     const response = await chrome.runtime.sendMessage({ action: "analyze_page", pageData });
     if (!response || !response.success) {
@@ -522,25 +524,79 @@ function renderInPageAiSummary(aiResult, errorMessage) {
   document.body.appendChild(panel);
 }
 
-// Message listener from popup.js or background.js
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "scan_page") {
-    try {
-      // 1. Collect the page structure.
-      const pageData = collectPageSecurityData();
-      jevLastPageSummary = pageData;
-      // 2. Locally find potentially dangerous elements.
-      const findings = detectDangerousElements();
-      pageData.findings = findings;
-      // 3. Immediately highlight them right on the page.
-      highlightFindings(findings);
-      
-      // Send the structured data back to the background script.
-      sendResponse({ success: true, data: pageData });
-    } catch (error) {
-      sendResponse({ success: false, error: error.message });
+// ---------------------------------------------------------------------------
+// Jev AI verdict for every locally found vulnerability: can it be used to
+// attack this web page? Answers are stored on the finding objects and shown
+// in the on-page danger panel.
+// ---------------------------------------------------------------------------
+
+// Short text of the Jev AI attack verdict of a finding (empty while unknown).
+function jevAttackAnswerText(finding) {
+  if (finding.attackPending) {
+    return "Jev AI: asking whether it can be used to attack the page...";
+  }
+  if (finding.attackError) {
+    return `Jev AI: assessment failed — ${finding.attackError}`;
+  }
+  if (typeof finding.attackProbability !== "number") return "";
+  const percent = Math.round(finding.attackProbability * 100);
+  return percent >= 50
+    ? `Jev AI: can be used to attack the page (${percent}%)`
+    : `Jev AI: probably cannot be used to attack the page (${percent}%)`;
+}
+
+// Writes the answers (or an error) onto the findings and refreshes the panel.
+function applyAttackAnswers(findings, answers, errorMessage) {
+  findings.forEach((finding) => {
+    finding.attackPending = false;
+    const answer = answers && answers[finding.id];
+    if (errorMessage) {
+      finding.attackError = errorMessage;
+    } else if (answer && typeof answer.noul === "number") {
+      finding.attackProbability = answer.noul;
+      finding.attackError = "";
+    } else {
+      finding.attackError = "no answer from Jev AI";
     }
-  } else if (message.action === "scan_page_from_menu") {
+    const el = jevFindingElements.get(finding.id);
+    if (el && el.isConnected) {
+      const verdict = jevAttackAnswerText(finding);
+      jevSetFindingTitle(el, "Jev AI: " + finding.reason +
+        (finding.detail ? " — " + finding.detail : "") +
+        (verdict ? " | " + verdict : ""));
+    }
+  });
+  if (document.getElementById("jev-danger-panel")) {
+    renderDangerPanel(jevCurrentFindings);
+  }
+}
+
+// Sends the findings to the service worker: one binary Jev AI question per
+// vulnerability. Answers arrive asynchronously and are rendered afterwards.
+async function askJevAboutFindings(pageData, findings) {
+  if (!findings.length) return;
+  findings.forEach((finding) => {
+    finding.attackPending = true;
+    finding.attackError = "";
+  });
+  if (document.getElementById("jev-danger-panel")) {
+    renderDangerPanel(jevCurrentFindings);
+  }
+  try {
+    const response = await chrome.runtime.sendMessage({ action: "assess_findings", pageData });
+    if (!response || !response.success) {
+      applyAttackAnswers(findings, null, (response && response.error) || "Unknown Jev AI error");
+      return;
+    }
+    applyAttackAnswers(findings, response.answers, null);
+  } catch (error) {
+    applyAttackAnswers(findings, null, error.message);
+  }
+}
+
+// Message listener from background.js
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "scan_page_from_menu") {
     runInPageScan();
     sendResponse({ success: true });
   } else if (message.action === "clear_highlights") {
@@ -706,11 +762,13 @@ function renderDangerPanel(findings) {
   findings.forEach(finding => {
     const item = document.createElement('div');
     item.className = `jev-danger-item jev-sev-${finding.severity}`;
+    const attackText = jevAttackAnswerText(finding);
     item.innerHTML =
       `<div class="jev-danger-item-title">${jevEscapeHtml(finding.reason)}</div>` +
       `<div class="jev-danger-item-detail">${jevEscapeHtml(finding.selector)}` +
       (finding.detail ? ` — ${jevEscapeHtml(finding.detail)}` : '') +
-      '</div>';
+      '</div>' +
+      (attackText ? `<div class="jev-danger-item-jev">${jevEscapeHtml(attackText)}</div>` : "");
 
     const removeBtn = document.createElement('button');
     removeBtn.className = 'jev-btn-remove';

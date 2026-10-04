@@ -26,20 +26,8 @@
     }
     button:hover { background-color: #1d4ed8; }
     button:disabled { background-color: #9ca3af; cursor: not-allowed; }
-    
-    .result-box { margin-top: 15px; display: none; }
-    .metric { background: white; padding: 10px; border-radius: 6px; border: 1px solid #e5e7eb; margin-bottom: 8px; }
-    .metric-title { font-size: 0.85rem; color: #4b5563; margin-bottom: 4px; }
-    .metric-value { font-size: 1rem; font-weight: bold; display: flex; justify-content: space-between; }
-    
-    /* Progress bar for probabilities */
-    .bar-container { background: #e5e7eb; height: 6px; border-radius: 3px; margin-top: 5px; overflow: hidden; }
-    .bar { height: 100%; width: 0%; transition: width 0.3s, background-color 0.3s; }
-    
-    /* Risk color statuses */
-    .risk-safe { color: #16a34a; }
-    .risk-warning { color: #d97706; }
-    .risk-danger { color: #dc2626; }
+
+    .scan-hint { margin: 12px 0 0; font-size: 0.78rem; color: #6b7280; }
 
     /* Settings: saving the API key */
     .settings-card {
@@ -87,7 +75,6 @@
       cursor: pointer;
     }
 
-    #loader { display: none; text-align: center; color: #4b5563; font-size: 0.9rem; margin: 15px 0; }
   </style>
 </head>
 <body>
@@ -108,38 +95,7 @@
     </div>
   </div>
 
-  <button id="scanBtn">Scan page</button>
-
-  <div id="loader">Jev AI structure analysis (~100ms)...</div>
-
-  <div id="resultBox" class="result-box">
-    <!-- Metric 1: Phishing probability (Noul) -->
-    <div class="metric">
-      <div class="metric-title">Phishing / spoofing threat (Noul)</div>
-      <div class="metric-value" id="phishingVal">0%</div>
-      <div class="bar-container"><div id="phishingBar" class="bar"></div></div>
-    </div>
-
-    <!-- Metric 1b: Deceptive data harvesting (Noul) -->
-    <div class="metric">
-      <div class="metric-title">Credential harvesting (Noul)</div>
-      <div class="metric-value" id="harvestVal">0%</div>
-      <div class="bar-container"><div id="harvestBar" class="bar"></div></div>
-    </div>
-
-    <!-- Metric 2: Risk category (Choice) -->
-    <div class="metric">
-      <div class="metric-title">Main attack vector (Choice)</div>
-      <div class="metric-value" id="categoryVal">-</div>
-    </div>
-
-    <!-- Metric 3: Overall risk level (Score) -->
-    <div class="metric">
-      <div class="metric-title">Code risk index (Score)</div>
-      <div class="metric-value"><span id="scoreVal">0/5</span></div>
-      <div class="bar-container"><div id="scoreBar" class="bar"></div></div>
-    </div>
-  </div>
+  <p class="scan-hint">Scan: right-click the page → "Jev: check page safety".</p>
 
   <script src="popup.js"></script>
 </body>

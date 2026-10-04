@@ -34,9 +34,8 @@ assessment of the page structure. Jev AI is the only analysis backend.
   the list of flagged elements with highlight + click-to-scroll, plus a Jev AI summary
   panel (bottom-left) with the AI risk metrics. A context-menu item ("Jev: check
   page safety") triggers the full in-page scan.
-- **Popup** (`popup.html` / `popup.js`): settings and scan button, plus the Jev AI
-  metrics (phishing, credential harvest, risk category, severity score). The structural
-  summary and the element list live on the page only.
+- **Popup** (`popup.html` / `popup.js`): settings only (API token, auto-removal toggle).
+  Scanning and all Jev AI results are available from the context menu only.
 
 ## Settings
 
@@ -54,7 +53,7 @@ intended for controlled analysis only.
 - `manifest.json` — MV3 manifest, permissions, content script registration.
 - `content.js` — DOM collection, local heuristic detection, on-page UI.
 - `background.js` — Jev AI request, API-key handling, context menu.
-- `popup.html` / `popup.js` — extension popup UI and rendering.
+- `popup.html` / `popup.js` — extension popup settings UI.
 - `styles.css` — styles for the in-page findings and Jev AI panels.
 
 ## Install (developer mode)
